@@ -116,6 +116,7 @@ Then:
 | `pnpm db:migrate` | Apply migrations to `DATABASE_URL` |
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm dev:s3` | Create the local bucket and apply CORS |
+| `pnpm preflight [envfile]` | Check production credentials (DB, migrations, S3 CORS/permissions, Resend) before deploying. Defaults to `.env.production.local` |
 
 ---
 
@@ -164,6 +165,8 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
    `DATABASE_URL='postgresql://…' pnpm db:migrate`
 
 ## Deploying to Vercel (Hobby)
+
+> **Step-by-step:** follow [docs/DEPLOY.md](docs/DEPLOY.md). It has exact values to paste, a `pnpm preflight` credential check, and troubleshooting.
 
 1. Push this repo to GitHub and **Import** it in Vercel. The framework (Next.js) and pnpm are auto-detected.
 2. **Settings → Environment Variables:** add every ✅ / prod variable above for Production (and Preview if you use it):

@@ -16,7 +16,11 @@
     {
       "Sid": "SchusterMediaBucket",
       "Effect": "Allow",
-      "Action": ["s3:ListBucket", "s3:ListBucketMultipartUploads"],
+      "Action": [
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:GetBucketCors"
+      ],
       "Resource": "arn:aws:s3:::REPLACE_WITH_BUCKET_NAME"
     }
   ]
