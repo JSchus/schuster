@@ -131,7 +131,7 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
 | `AUTH_URL` | prod | `https://schuster.me` | Canonical origin. Passkeys are bound to this domain (WebAuthn RP ID), so keep it stable. |
 | `AUTH_TRUST_HOST` | non-Vercel | `true` | Trust the `Host` header. Vercel sets this automatically. |
 | `AUTH_RESEND_KEY` | prod | `re_…` | [Resend](https://resend.com) API key for magic-link emails. Empty in dev = links logged to the console. |
-| `EMAIL_FROM` | | `Schuster Media <media@schuster.me>` | Sender address; the domain must be verified in Resend. |
+| `EMAIL_FROM` | | `Schuster Media <login@mail.schuster.me>` | Sender address. Its domain (`mail.schuster.me`) must be verified in Resend. A subdomain keeps Resend apart from the IONOS mailboxes on `schuster.me`. |
 | `ALLOWED_EMAILS` | | `mom@x.com, sam@y.org` | Who may **create** an account. The first account is always allowed (and becomes admin). |
 | `STORAGE_DRIVER` | | `s3` | `s3` (default) or `memory` (tests only). |
 | `S3_BUCKET` | ✅ | `schuster-media` | Bucket name. |
@@ -173,12 +173,12 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
    - `AUTH_URL=https://schuster.me`
    - leave `S3_ENDPOINT` empty
    - `S3_FORCE_PATH_STYLE=false`
-3. **Settings → Domains:** add `schuster.me` (and redirect `www.schuster.me` to it). At your registrar:
+3. **Settings → Domains:** add `schuster.me` (and redirect `www.schuster.me` to it). At your DNS host:
    - point the apex `A` record to `76.76.21.21`;
    - set `www` as a `CNAME` to `cname.vercel-dns.com`.
 
-   Or follow the records Vercel shows.
-4. **Resend:** verify `schuster.me` (it gives you DNS records), then set `AUTH_RESEND_KEY` and `EMAIL_FROM`.
+   Use the A/CNAME method, **not** Vercel nameservers. Leave every MX, TXT and mail CNAME alone: the IONOS mailboxes on `schuster.me` depend on them.
+4. **Resend:** verify the subdomain `mail.schuster.me` (its DNS records all live under `mail.`), then set `AUTH_RESEND_KEY` and `EMAIL_FROM`.
 5. Run `pnpm db:migrate` against the Neon URL (once per schema change), then deploy.
 6. Visit `https://schuster.me/login` and **create the first passkey right away**: that account becomes admin. Afterwards, only `ALLOWED_EMAILS` can sign up.
 

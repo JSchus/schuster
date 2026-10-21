@@ -5,6 +5,7 @@
 //
 // Every check prints ✅ / ❌ / ⚠️ with a hint. Exit code 1 if anything failed.
 // It creates and deletes one small object under `preflight/` in the bucket.
+import { resolve4, resolveMx } from "node:dns/promises";
 import { existsSync, readFileSync } from "node:fs";
 import {
   AbortMultipartUploadCommand,
@@ -146,7 +147,10 @@ await section("S3", async () => {
     );
   } catch (err) {
     if (err.name === "NoSuchCORSConfiguration") fail("No CORS configuration", "Bucket → Permissions → CORS → paste infra/s3-cors.json.");
-    else fail(`GetBucketCors: ${err.name}: ${err.message}`, hintFor(err) ?? "Add s3:GetBucketCors to the IAM policy (see infra/iam-policy.json).");
+    else fail(`GetBucketCors: ${err.name}: ${err.message}`, hintFor(err) ??
+          (err.$metadata
+            ? "Add s3:GetBucketCors to the IAM policy (see infra/iam-policy.json)."
+            : "Can't reach S3: check S3_REGION / S3_ENDPOINT and your network."));
   }
 
   // Multipart create + abort (what every upload does first / on cancel).
@@ -173,6 +177,43 @@ await section("S3", async () => {
   ok("DELETE (cleaned up)");
 });
 
+// The apex domain also hosts IONOS mailboxes: make sure the deploy hasn't broken them.
+const appHost = env.AUTH_URL ? new URL(env.AUTH_URL).hostname : "";
+if (appHost && !/^(localhost|127\.|\[::1\])/.test(appHost)) {
+  await section("DNS (email safety)", async () => {
+    const VERCEL_IP = "76.76.21.21";
+    try {
+      const mx = (await resolveMx(appHost)).sort((a, b) => a.priority - b.priority).map((r) => r.exchange);
+      if (!mx.length) {
+        fail(`No MX records on ${appHost}`, "Your IONOS email would stop working. Restore the MX records from your step-0 screenshot.");
+      } else if (mx.some((h) => /ionos|1and1|perfora/i.test(h))) {
+        ok(`MX intact: ${mx.join(", ")}`);
+      } else {
+        warn(`MX points at ${mx.join(", ")}, not IONOS`, "If your mailboxes are at IONOS, check the MX records weren't changed.");
+      }
+    } catch (err) {
+      // ENODATA: the domain resolves but has no MX. ENOTFOUND is ambiguous (offline DNS), so only warn.
+      if (err.code === "ENODATA")
+        fail(`No MX records on ${appHost}`, "Your IONOS email would stop working. Restore the MX records from your step-0 screenshot.");
+      else warn(`Couldn't look up MX for ${appHost} (${err.code ?? err.message})`, "Check your network and re-run.");
+    }
+
+    try {
+      const a = await resolve4(appHost);
+      if (a.includes(VERCEL_IP)) ok(`${appHost} → ${VERCEL_IP} (Vercel)`);
+      else
+        warn(`${appHost} → ${a.join(", ")}`, `Not pointed at Vercel yet; expected before DEPLOY.md step 7 (A @ → ${VERCEL_IP}).`);
+    } catch (err) {
+      warn(`Couldn't resolve ${appHost} (${err.code ?? err.message})`, `Set A @ → ${VERCEL_IP} in DEPLOY.md step 7.`);
+    }
+
+    const fromDomain = (env.EMAIL_FROM ?? "").match(/@([^>\s]+)/)?.[1];
+    if (fromDomain === appHost)
+      warn(`EMAIL_FROM sends from ${fromDomain}`, `Send from mail.${appHost} so Resend stays separate from the IONOS mail domain.`);
+    else if (fromDomain) ok(`sign-in emails sent from ${fromDomain}, separate from the IONOS mailboxes`);
+  });
+}
+
 if (env.AUTH_RESEND_KEY) {
   await section("Resend", async () => {
     const res = await fetch("https://api.resend.com/domains", {
@@ -186,7 +227,7 @@ if (env.AUTH_RESEND_KEY) {
     }
     if (!res.ok) return fail(`Resend API returned ${res.status}`);
     const { data = [] } = await res.json();
-    const from = env.EMAIL_FROM ?? "media@schuster.me";
+    const from = env.EMAIL_FROM ?? "login@mail.schuster.me";
     const domain = from.match(/@([^>\s]+)/)?.[1];
     const match = data.find((d) => d.name === domain);
     if (!match) fail(`Domain ${domain} not added in Resend`, "Resend → Domains → Add domain, then add its DNS records.");

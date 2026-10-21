@@ -9,7 +9,7 @@ const schema = z.object({
   DATABASE_URL: z.string().url(),
   AUTH_SECRET: z.string().min(16),
   AUTH_RESEND_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Schuster Media <media@schuster.me>"),
+  EMAIL_FROM: z.string().default("Schuster Media <login@mail.schuster.me>"),
   ALLOWED_EMAILS: z.string().default(""),
   STORAGE_DRIVER: z.enum(["s3", "memory"]).default("s3"),
   S3_BUCKET: z.string().optional(),

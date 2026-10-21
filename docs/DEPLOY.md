@@ -10,6 +10,29 @@ cp .env.example .env.production.local
 
 ---
 
+## 0. Protect your IONOS email (≈5 min). Do this first
+
+The two mailboxes on `@schuster.me` are hosted at IONOS and must keep working. They depend on DNS records this deploy must **not** touch.
+
+- [ ] **Find who runs your DNS.** Run `dig NS schuster.me +short`, or look the domain up at [whois.com](https://www.whois.com/whois/schuster.me) under *Name Servers*. Every DNS edit below happens in **that company's** control panel. It isn't IONOS, and it isn't Vercel.
+- [ ] **Screenshot or export every existing DNS record** before changing anything, so you can restore it. IONOS mail typically uses records like:
+
+| Type | Name | Value (example) |
+| --- | --- | --- |
+| MX | `@` | `mx00.ionos.com` / `mx01.ionos.com` |
+| TXT | `@` | `v=spf1 include:_spf-us.ionos.com ~all` |
+| CNAME | `autodiscover` | `adsredir.ionos.info` |
+| TXT | `_dmarc`, `…._domainkey` | if present |
+
+- [ ] **Ground rules for the whole checklist:**
+  - **Never change the nameservers.** Vercel will offer "Use Vercel DNS"; decline it.
+  - **Never edit or delete MX records, TXT records on `@`, or mail-related CNAMEs.**
+  - The only records this deploy changes are **`A @`**, **`AAAA @`** (only if it points at an old website) and **`www`**. It also **adds** new records under **`mail.`** for Resend.
+
+The app sends its sign-in links from **`login@mail.schuster.me`**, a subdomain. All of Resend's records live under `mail.schuster.me`, so they can't interfere with IONOS mail on `schuster.me`.
+
+---
+
 ## 1. AWS S3 (≈10 min)
 
 - [ ] **Create the bucket.** S3 → *Create bucket*:
@@ -64,13 +87,22 @@ DATABASE_URL=postgresql://…-pooler….neon.tech/neondb?sslmode=require
 
 ## 3. Resend, for magic-link email (≈10 min plus DNS)
 
-- [ ] Sign up at [resend.com](https://resend.com) → *Domains* → *Add domain* → `schuster.me`, region us-east-1.
-- [ ] Add the DNS records Resend shows (an MX and TXT on a `send` subdomain, plus a DKIM TXT) at your domain registrar. Click *Verify*; it usually turns green within minutes, but can take up to a few hours.
+- [ ] Sign up at [resend.com](https://resend.com) → *Domains* → *Add domain* → **`mail.schuster.me`** (the subdomain, not `schuster.me`), region us-east-1.
+- [ ] At your DNS host, **add** the records Resend shows. They all sit under `mail.`, for example:
+
+| Type | Name to enter | Purpose |
+| --- | --- | --- |
+| TXT | `resend._domainkey.mail` | DKIM signature key |
+| MX | `send.mail` | bounce handling (Resend's, **not** your inbox) |
+| TXT | `send.mail` | SPF for Resend |
+
+  Most DNS panels add `.schuster.me` automatically, so enter `send.mail`, not `send.mail.schuster.me`. These are **new** records: don't edit the existing `@` MX/TXT records, which belong to IONOS.
+- [ ] Click *Verify* in Resend; it usually turns green within minutes, but can take up to a few hours.
 - [ ] *API Keys* → *Create API key* → permission **Sending access** → copy it.
 
 ```dotenv
 AUTH_RESEND_KEY=re_…
-EMAIL_FROM="Schuster Media <media@schuster.me>"
+EMAIL_FROM="Schuster Media <login@mail.schuster.me>"
 ```
 
 ## 4. Auth settings
@@ -81,9 +113,11 @@ EMAIL_FROM="Schuster Media <media@schuster.me>"
 ```dotenv
 AUTH_SECRET=…
 AUTH_URL=https://schuster.me
-ALLOWED_EMAILS=mom@example.com, dad@example.com, sam@example.com
+ALLOWED_EMAILS=you@schuster.me, mom@example.com, dad@example.com
 ```
 
+> Your own `@schuster.me` addresses work fine here: sign-in links arrive in your IONOS inbox as usual.
+>
 > `AUTH_URL` must be exactly `https://schuster.me`. Passkeys are permanently bound to that domain: a passkey made on a preview URL won't work on schuster.me.
 
 ## 5. Preflight: test every credential before deploying
@@ -98,7 +132,8 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
 - the database connects and migrations are applied;
 - the S3 CORS rules;
 - S3 permissions for multipart upload, presigned PUT/GET and delete;
-- the Resend domain.
+- the Resend domain;
+- DNS safety: the IONOS **MX records are still in place**, and whether `schuster.me` points at Vercel yet (it won't until step 7, so a ⚠️ there is expected).
 
 ## 6. Vercel (≈10 min)
 
@@ -111,7 +146,7 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
 | `AUTH_SECRET` | from `npx auth secret` |
 | `AUTH_URL` | `https://schuster.me` |
 | `AUTH_RESEND_KEY` | `re_…` |
-| `EMAIL_FROM` | `Schuster Media <media@schuster.me>` |
+| `EMAIL_FROM` | `Schuster Media <login@mail.schuster.me>` |
 | `ALLOWED_EMAILS` | family emails, comma-separated |
 | `STORAGE_DRIVER` | `s3` |
 | `S3_BUCKET` | `schuster-media` |
@@ -129,14 +164,21 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
 - [ ] Vercel project → *Settings* → *Domains*:
   - add `schuster.me`;
   - add `www.schuster.me` and choose *Redirect to schuster.me*.
-- [ ] At your domain registrar, create the records Vercel shows. Usually:
+
+  If Vercel offers **"Vercel DNS" / changing nameservers, don't**: that would drop your IONOS MX records. Use the **A record / CNAME** option.
+- [ ] At your DNS host (from step 0), set only these records. Usually:
 
 | Type | Name | Value |
 | --- | --- | --- |
 | A | `@` | `76.76.21.21` |
 | CNAME | `www` | `cname.vercel-dns.com` |
 
-  Remove any other A/AAAA records on `@` (registrar "parking" pages).
+  - If `A @` already exists (pointing at an old website or parking page), **edit** it to `76.76.21.21` rather than adding a second one.
+  - Delete an `AAAA @` record only if it points at that same old website; otherwise IPv6 visitors land there.
+  - If `www` exists, change it to the CNAME above.
+  - **Don't touch** MX, TXT on `@`, `autodiscover` or anything under `mail.`.
+  - **Cloudflare users:** set both records to **DNS only** (grey cloud).
+- [ ] **Check email still works:** send a message to each IONOS mailbox from another account, reply from it, then re-run `pnpm preflight` and confirm the MX check is ✅.
 - [ ] Wait for both domains to show **Valid Configuration** in Vercel. HTTPS certificates are issued automatically. DNS changes can take a few minutes to a few hours to propagate; check with `dig schuster.me +short`, which should print `76.76.21.21`.
 
 ## 8. First login: do this right away
@@ -160,7 +202,9 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
 | Upload fails: CORS error in browser console | The site's origin isn't in *AllowedOrigins*. Add it, e.g. a `*.vercel.app` preview URL. |
 | Passkey error mentioning "RP ID" or "origin" | `AUTH_URL` doesn't match the address in the browser. It must be `https://schuster.me`; open the site at that address, not `www` or the vercel.app URL. |
 | "That email isn't on the family list yet" | Add the address to `ALLOWED_EMAILS` in Vercel → *Deployments* → ⋯ → *Redeploy*. |
-| Magic-link email never arrives | Resend domain not *Verified* yet, or `EMAIL_FROM` uses a different domain. Check Resend → *Logs*. |
+| Magic-link email never arrives | Resend domain `mail.schuster.me` not *Verified* yet, or `EMAIL_FROM` isn't `…@mail.schuster.me`. Check Resend → *Logs*. |
+| Magic link lands in spam | The Resend records under `mail.` aren't all verified yet. Wait for every record to show green in Resend. |
+| IONOS mail stopped arriving | The MX records on `@` were changed or deleted, or the nameservers were switched. Restore them from your step-0 screenshot; `pnpm preflight` shows the current MX. |
 | `500` on every page right after deploy | An env var is missing or misspelled. Vercel → *Logs* shows `Invalid environment: …` with the variable name. |
 | Library loads but covers are broken | S3 credentials or region are wrong in Vercel. Covers are presigned GETs. |
 | A Vercel preview deploy can't sign in | Expected: passkeys and `AUTH_URL` are bound to schuster.me. Test on production. |
