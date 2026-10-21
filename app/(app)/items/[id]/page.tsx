@@ -1,0 +1,113 @@
+import { ArrowLeft, Download } from "lucide-react";
+import type { Metadata } from "next";
+import { Link } from "next-view-transitions";
+import { notFound } from "next/navigation";
+import { Cover } from "@/components/library/cover";
+import { libraryHref } from "@/components/library/filter-link";
+import { MediaTypeIcon } from "@/components/library/media-type-icon";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { withCoverUrls } from "@/lib/covers";
+import { getItemWithUploader } from "@/lib/db/queries";
+import { MEDIA_TYPE_LABELS } from "@/lib/media-types";
+import { formatBytes, formatDuration } from "@/lib/utils";
+
+type Props = { params: Promise<{ id: string }> };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function load(id: string) {
+  if (!UUID.test(id)) return undefined;
+  return getItemWithUploader(id);
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const row = await load((await params).id);
+  return { title: row?.item.title ?? "Not found" };
+}
+
+/** Item detail: cover, metadata and a presigned download link. */
+export default async function ItemPage({ params }: Props) {
+  const row = await load((await params).id);
+  if (!row) notFound();
+  const [item] = await withCoverUrls([row.item]);
+  if (!item) notFound();
+  const m = item.metadata;
+
+  const facts: [string, string | undefined][] = [
+    ["Author", m.author],
+    ["Publisher", m.publisher],
+    ["Duration", m.durationSec ? formatDuration(m.durationSec) : undefined],
+    ["Resolution", m.width && m.height ? `${m.width}×${m.height}` : undefined],
+    ["Language", m.language],
+    ["Size", formatBytes(item.size)],
+    ["Format", item.mime],
+    ["Added by", row.uploaderName ?? row.uploaderEmail ?? undefined],
+    ["Added", item.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })],
+  ];
+
+  return (
+    <article className="grid gap-6">
+      <Button asChild variant="ghost" size="sm" className="w-fit">
+        <Link href="/">
+          <ArrowLeft /> Library
+        </Link>
+      </Button>
+      <div className="grid gap-8 md:grid-cols-[minmax(0,18rem)_1fr]">
+        <Cover
+          url={item.coverUrl}
+          title={item.title}
+          type={item.type}
+          transitionName={`cover-${item.id}`}
+          className="mx-auto w-full max-w-xs shadow-lg md:max-w-none"
+          eager
+        />
+        <div className="grid content-start gap-5">
+          <div className="grid gap-2">
+            <Badge variant="secondary" className="gap-1">
+              <MediaTypeIcon type={item.type} /> {MEDIA_TYPE_LABELS[item.type]}
+            </Badge>
+            <h1 className="text-3xl font-semibold tracking-tight text-balance">{item.title}</h1>
+            {m.author ? <p className="text-lg text-muted-foreground">{m.author}</p> : null}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {/* Route handler 302s to a presigned S3 URL; bytes never touch Vercel. */}
+            <Button asChild size="lg">
+              <a href={`/api/items/${item.id}/download`} download>
+                <Download /> Download
+              </a>
+            </Button>
+          </div>
+
+          {item.description ? (
+            <p className="max-w-prose leading-relaxed whitespace-pre-line text-muted-foreground">
+              {item.description}
+            </p>
+          ) : null}
+
+          {item.tags.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {item.tags.map((t) => (
+                <Badge key={t} asChild variant="outline">
+                  <Link href={libraryHref({ tag: t })}>#{t}</Link>
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
+          <dl className="grid max-w-md grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+            {facts
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k} className="contents">
+                  <dt className="text-muted-foreground">{k}</dt>
+                  <dd className="truncate">{v}</dd>
+                </div>
+              ))}
+          </dl>
+        </div>
+      </div>
+    </article>
+  );
+}

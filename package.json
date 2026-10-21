@@ -1,0 +1,74 @@
+{
+  "name": "schuster-media",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal media hub for family and friends \u2014 schuster.me",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.18"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "dev:s3": "node scripts/dev-s3.mjs"
+  },
+  "dependencies": {
+    "@auth/core": "0.41.3",
+    "@auth/drizzle-adapter": "1.11.3",
+    "@aws-sdk/client-s3": "^3.1154.0",
+    "@aws-sdk/s3-request-presigner": "^3.1154.0",
+    "@neondatabase/serverless": "1.2.0",
+    "@radix-ui/react-label": "^2.1.17",
+    "@radix-ui/react-progress": "^1.2.1",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@simplewebauthn/browser": "9.0.1",
+    "@simplewebauthn/server": "9.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "0.45.4",
+    "jszip": "3.10.2",
+    "lucide-react": "^1.60.0",
+    "next": "15.5.28",
+    "next-auth": "5.0.0-beta.32",
+    "next-themes": "0.4.6",
+    "next-view-transitions": "0.3.5",
+    "postgres": "3.4.9",
+    "react": "~19.2.9",
+    "react-dom": "~19.2.9",
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "aws-sdk-client-mock": "^4.1.0",
+    "drizzle-kit": "0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "15.5.28",
+    "happy-dom": "^20.14.6",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "unrs-resolver"
+    ]
+  }
+}
