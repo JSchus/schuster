@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Loader2, X, XCircle } from "lucide-react";
 import { Link } from "next-view-transitions";
+import { canMakeCover } from "@/lib/extract";
 import { MediaTypeIcon } from "@/components/library/media-type-icon";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -56,6 +57,7 @@ export function UploadRow({ entry, onCancel }: { entry: QueueEntry; onCancel: ()
           {entry.status === "uploading" ? ` ${pct}%` : null}
           {entry.error ? <span className="truncate text-destructive">: {entry.error}</span> : null}
         </p>
+        {entry.status === "done" ? <CoverNote entry={entry} /> : null}
       </div>
       {entry.status === "done" && entry.itemId ? (
         <Button asChild variant="outline" size="sm">
@@ -67,5 +69,18 @@ export function UploadRow({ entry, onCancel }: { entry: QueueEntry; onCancel: ()
         </Button>
       ) : null}
     </li>
+  );
+}
+
+/** Explain a missing cover, so it isn't a silent grey tile. */
+function CoverNote({ entry }: { entry: QueueEntry }) {
+  const info = entry.info;
+  if (!info || info.coverStatus === "ok" || !canMakeCover(info.type, info.mime)) return null;
+  return (
+    <p className="text-xs text-amber-600 dark:text-amber-400">
+      {info.coverStatus === "failed"
+        ? "Cover couldn't be created in this browser. Try “Make cover” on the item page."
+        : "No cover found in this file."}
+    </p>
   );
 }

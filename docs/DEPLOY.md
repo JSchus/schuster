@@ -81,6 +81,21 @@ DATABASE_URL='postgresql://…-pooler…neon.tech/neondb?sslmode=require' pnpm d
 
 You should see `migrations applied successfully!`.
 
+  **No Node.js on your computer?** Create the tables in Neon's website instead:
+  1. In Neon, open *Postgres database* → **SQL Editor** (branch `production`, database `neondb`).
+  2. Paste the whole of [`drizzle/0000_init.sql`](../drizzle/0000_init.sql) (GitHub → *Copy raw file*) and click **Run**.
+  3. Clear the editor, then paste and run this, so future `pnpm db:migrate` runs know the first migration is already applied:
+
+     ```sql
+     CREATE SCHEMA IF NOT EXISTS drizzle;
+     CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint);
+     INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+     VALUES ('c7a7925d61bbc7eac06ad2ba046e614a985f454d0cf8f484940143e9cec2ceac', 1792556134248);
+     ```
+
+     The hash is the SHA-256 of `0000_init.sql` and the number is its `when` in `drizzle/meta/_journal.json`; both only apply to this first migration.
+  4. *Tables* should list 8 tables: `accounts`, `authenticators`, `favorites`, `media_items`, `sessions`, `user_progress`, `users`, `verification_tokens`.
+
 ```dotenv
 DATABASE_URL=postgresql://…-pooler….neon.tech/neondb?sslmode=require
 ```
@@ -92,9 +107,11 @@ DATABASE_URL=postgresql://…-pooler….neon.tech/neondb?sslmode=require
 
 | Type | Name to enter | Purpose |
 | --- | --- | --- |
-| TXT | `resend._domainkey.mail` | DKIM signature key |
-| MX | `send.mail` | bounce handling (Resend's, **not** your inbox) |
-| TXT | `send.mail` | SPF for Resend |
+| TXT | `resend._domainkey.mail` | DKIM signature key (copy the full `p=…` value) |
+| CNAME | `rsend.mail` | Resend sending/SPF (copy the full `….rmta.net` value) |
+| CNAME | `send.mail` | Resend bounce handling (copy the full `….rmta.net` value) |
+
+  Resend's layout changes now and then (older accounts show an MX + TXT on `send.mail` instead); add exactly what *your* Resend screen lists. **Skip the optional `_dmarc` row**: its name is the bare `_dmarc`, which applies to the main `schuster.me` domain where the IONOS mail lives.
 
   Most DNS panels add `.schuster.me` automatically, so enter `send.mail`, not `send.mail.schuster.me`. These are **new** records: don't edit the existing `@` MX/TXT records, which belong to IONOS.
 - [ ] Click *Verify* in Resend; it usually turns green within minutes, but can take up to a few hours.
@@ -164,22 +181,28 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
 - [ ] Vercel project → *Settings* → *Domains*:
   - add `schuster.me`;
   - add `www.schuster.me` and choose *Redirect to schuster.me*.
+- [ ] **Check which one is the main address.** Vercel often makes `www` the primary and redirects `schuster.me` to it. The app needs the reverse, because `AUTH_URL` and passkeys use `https://schuster.me`. If the `schuster.me` row shows `308 → www.schuster.me`:
+  1. *Edit* **schuster.me** → *Connect to an environment* → **Production** → Save (do this first; Vercel won't let the two redirect to each other);
+  2. *Edit* **www.schuster.me** → *Redirect to Another Domain* → **308** → pick **schuster.me** → Save.
 
   If Vercel offers **"Vercel DNS" / changing nameservers, don't**: that would drop your IONOS MX records. Use the **A record / CNAME** option.
-- [ ] At your DNS host (from step 0), set only these records. Usually:
+- [ ] Click **View DNS configuration** on each row and use **exactly the values Vercel shows**. They're per project, for example:
 
-| Type | Name | Value |
+| Type | Name | Value (example) |
 | --- | --- | --- |
-| A | `@` | `76.76.21.21` |
-| CNAME | `www` | `cname.vercel-dns.com` |
+| A | `@` | `216.198.79.1` |
+| CNAME | `www` | `5452b742d153da56.vercel-dns-017.com` |
 
-  - If `A @` already exists (pointing at an old website or parking page), **edit** it to `76.76.21.21` rather than adding a second one.
+  Vercel's older values (`A @ → 76.76.21.21`, `CNAME www → cname.vercel-dns.com`) still work too.
+- [ ] At your DNS host (from step 0), set only these records:
+  - If `A @` already exists (pointing at an old website or parking page), **edit** it to Vercel's address rather than adding a second one.
+  - IONOS may update an `A www` record automatically when you change `A @`. An `A www` record pointing at the same Vercel address works just as well as the CNAME, so you can leave it.
   - Delete an `AAAA @` record only if it points at that same old website; otherwise IPv6 visitors land there.
   - If `www` exists, change it to the CNAME above.
   - **Don't touch** MX, TXT on `@`, `autodiscover` or anything under `mail.`.
   - **Cloudflare users:** set both records to **DNS only** (grey cloud).
 - [ ] **Check email still works:** send a message to each IONOS mailbox from another account, reply from it, then re-run `pnpm preflight` and confirm the MX check is ✅.
-- [ ] Wait for both domains to show **Valid Configuration** in Vercel. HTTPS certificates are issued automatically. DNS changes can take a few minutes to a few hours to propagate; check with `dig schuster.me +short`, which should print `76.76.21.21`.
+- [ ] Wait for both domains to show **Valid Configuration** in Vercel. HTTPS certificates are issued automatically. DNS changes can take a few minutes to a few hours to propagate; check with `dig schuster.me +short`, which should print the address Vercel gave you.
 
 ## 8. First login: do this right away
 

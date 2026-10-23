@@ -2,14 +2,16 @@ import { ArrowLeft, Download } from "lucide-react";
 import type { Metadata } from "next";
 import { Link } from "next-view-transitions";
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import { Cover } from "@/components/library/cover";
 import { libraryHref } from "@/components/library/filter-link";
+import { MakeCoverButton } from "@/components/library/make-cover-button";
 import { MediaTypeIcon } from "@/components/library/media-type-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { withCoverUrls } from "@/lib/covers";
 import { getItemWithUploader } from "@/lib/db/queries";
-import { MEDIA_TYPE_LABELS } from "@/lib/media-types";
+import { canMakeCover, MEDIA_TYPE_LABELS } from "@/lib/media-types";
 import { formatBytes, formatDuration } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
@@ -30,9 +32,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ItemPage({ params }: Props) {
   const row = await load((await params).id);
   if (!row) notFound();
-  const [item] = await withCoverUrls([row.item]);
+  const [[item], session] = await Promise.all([withCoverUrls([row.item]), auth()]);
   if (!item) notFound();
   const m = item.metadata;
+  const user = session?.user;
+  const canEdit = !!user && (user.role === "admin" || user.id === item.addedBy);
 
   const facts: [string, string | undefined][] = [
     ["Author", m.author],
@@ -78,6 +82,9 @@ export default async function ItemPage({ params }: Props) {
                 <Download /> Download
               </a>
             </Button>
+            {canEdit && canMakeCover(item.type, item.mime) ? (
+              <MakeCoverButton itemId={item.id} type={item.type} mime={item.mime} hasCover={!!item.coverKey} />
+            ) : null}
           </div>
 
           {item.description ? (

@@ -27,12 +27,11 @@ export async function parseEpub(data: ArrayBuffer | Uint8Array | Blob): Promise<
       .map((el) => el.textContent?.trim() ?? "")
       .filter(Boolean);
 
-  const coverHref = findCoverHref(opf);
   let cover: EpubInfo["cover"];
-  if (coverHref) {
-    const path = resolvePath(baseDir, coverHref.href);
-    const file = zip.file(path) ?? zip.file(decodeURIComponent(path));
-    if (file) cover = { data: await file.async("uint8array"), mime: coverHref.mime };
+  const found = await findCover(zip, opf, baseDir);
+  if (found) {
+    const file = zipFile(zip, found.path);
+    if (file) cover = { data: await file.async("uint8array"), mime: found.mime };
   }
 
   return {
@@ -46,28 +45,128 @@ export async function parseEpub(data: ArrayBuffer | Uint8Array | Blob): Promise<
   };
 }
 
-type ManifestItem = { id: string; href: string; mime: string; properties: string };
+type ManifestItem = { id: string; href: string; path: string; mime: string; properties: string };
+type CoverRef = { path: string; mime: string };
 
-/** EPUB3 `properties="cover-image"`, then EPUB2 `<meta name="cover">`, then heuristics. */
-function findCoverHref(opf: Document): { href: string; mime: string } | undefined {
-  const items: ManifestItem[] = byLocalName(opf, "item").map((el) => ({
-    id: el.getAttribute("id") ?? "",
-    href: el.getAttribute("href") ?? "",
-    mime: el.getAttribute("media-type") ?? "",
-    properties: el.getAttribute("properties") ?? "",
-  }));
-  const images = items.filter((i) => i.mime.startsWith("image/"));
+/**
+ * Locate the cover image, trying in order:
+ *  1. EPUB 3 manifest item with `properties="cover-image"`
+ *  2. EPUB 2 `<meta name="cover" content="item-id">` (id matched case-insensitively)
+ *  3. the cover *page* named by `<guide><reference type="cover">` or the EPUB 3
+ *     landmarks nav, and the first image on that page
+ *  4. an image whose id/filename mentions "cover", else the first image
+ */
+async function findCover(zip: JSZip, opf: Document, baseDir: string): Promise<CoverRef | undefined> {
+  const items: ManifestItem[] = byLocalName(opf, "item").map((el) => {
+    const href = el.getAttribute("href") ?? "";
+    return {
+      id: el.getAttribute("id") ?? "",
+      href,
+      path: resolvePath(baseDir, href),
+      mime: el.getAttribute("media-type") ?? "",
+      properties: el.getAttribute("properties") ?? "",
+    };
+  });
+  const images = items.filter((i) => i.mime.startsWith("image/") && !i.mime.includes("svg"));
 
   const byProperty = images.find((i) => i.properties.split(/\s+/).includes("cover-image"));
   if (byProperty) return byProperty;
 
   const metaCover = byLocalName(opf, "meta")
-    .find((m) => m.getAttribute("name") === "cover")
-    ?.getAttribute("content");
-  const byMeta = images.find((i) => i.id === metaCover);
-  if (byMeta) return byMeta;
+    .find((m) => m.getAttribute("name")?.toLowerCase() === "cover")
+    ?.getAttribute("content")
+    ?.trim();
+  if (metaCover) {
+    const byMeta =
+      images.find((i) => i.id.toLowerCase() === metaCover.toLowerCase()) ??
+      images.find((i) => i.path === resolvePath(baseDir, metaCover));
+    if (byMeta) return byMeta;
+  }
+
+  for (const pagePath of await coverPagePaths(zip, opf, baseDir, items)) {
+    const img = await firstImageOnPage(zip, pagePath);
+    if (img) return { path: img, mime: images.find((i) => i.path === img)?.mime ?? mimeFromName(img) };
+  }
 
   return images.find((i) => /cover/i.test(i.id) || /cover/i.test(i.href)) ?? images[0];
+}
+
+/** Cover page paths from the EPUB 2 guide and the EPUB 3 landmarks nav. */
+async function coverPagePaths(
+  zip: JSZip,
+  opf: Document,
+  baseDir: string,
+  items: ManifestItem[],
+): Promise<string[]> {
+  const paths = byLocalName(opf, "reference")
+    .filter((r) => r.getAttribute("type")?.toLowerCase() === "cover")
+    .map((r) => resolvePath(baseDir, r.getAttribute("href") ?? ""));
+
+  const nav = items.find((i) => i.properties.split(/\s+/).includes("nav"));
+  const navDoc = nav ? await readMarkup(zip, nav.path) : undefined;
+  if (nav && navDoc) {
+    const navDir = dirOf(nav.path);
+    for (const a of byLocalName(navDoc, "a")) {
+      const isCover = Array.from(a.attributes).some(
+        (attr) =>
+          (attr.name === "epub:type" || attr.name.endsWith(":type")) &&
+          attr.value.split(/\s+/).includes("cover"),
+      );
+      const href = a.getAttribute("href");
+      if (isCover && href) paths.push(resolvePath(navDir, href));
+    }
+  }
+  return [...new Set(paths)].filter(Boolean);
+}
+
+/** First <img src> or SVG <image href> on an (X)HTML page, resolved to a zip path. */
+async function firstImageOnPage(zip: JSZip, pagePath: string): Promise<string | undefined> {
+  const page = await readMarkup(zip, pagePath);
+  if (!page) return undefined;
+  for (const el of [...byLocalName(page, "img"), ...byLocalName(page, "image")]) {
+    const ref =
+      el.getAttribute("src") ??
+      el.getAttribute("href") ??
+      Array.from(el.attributes).find((a) => a.localName === "href")?.value;
+    if (!ref) continue;
+    const path = resolvePath(dirOf(pagePath), ref);
+    if (zipFile(zip, path) && !/\.svg$/i.test(path)) return path;
+  }
+  return undefined;
+}
+
+function mimeFromName(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "gif") return "image/gif";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+function dirOf(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+}
+
+function zipFile(zip: JSZip, path: string) {
+  return zip.file(path) ?? zip.file(safeDecode(path));
+}
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/** Parse an XHTML page leniently: strict XML first, then HTML if that fails. */
+async function readMarkup(zip: JSZip, path: string): Promise<Document | undefined> {
+  const file = zipFile(zip, path);
+  if (!file) return undefined;
+  const text = await file.async("text");
+  const xml = new DOMParser().parseFromString(text, "application/xhtml+xml");
+  if (!xml.getElementsByTagName("parsererror").length) return xml;
+  return new DOMParser().parseFromString(text, "text/html");
 }
 
 /**

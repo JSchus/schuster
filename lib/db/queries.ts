@@ -30,6 +30,24 @@ export async function markItemReady(id: string, values: { coverKey: string | nul
     .where(eq(mediaItems.id, id));
 }
 
+/** A ready item, only if `user` uploaded it or is an admin. */
+export async function getItemForEdit(
+  id: string,
+  user: { id: string; role: "admin" | "member" },
+): Promise<MediaItem | undefined> {
+  const [row] = await db()
+    .select()
+    .from(mediaItems)
+    .where(and(eq(mediaItems.id, id), eq(mediaItems.status, "ready")))
+    .limit(1);
+  if (!row) return undefined;
+  return user.role === "admin" || row.addedBy === user.id ? row : undefined;
+}
+
+export async function setItemCover(id: string, coverKey: string) {
+  await db().update(mediaItems).set({ coverKey }).where(eq(mediaItems.id, id));
+}
+
 export async function deleteItem(id: string) {
   await db().delete(mediaItems).where(eq(mediaItems.id, id));
 }
