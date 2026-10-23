@@ -164,6 +164,8 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
 3. Run the migrations from your machine:
    `DATABASE_URL='postgresql://…' pnpm db:migrate`
 
+   No Node.js handy? Paste `drizzle/0000_init.sql` into Neon's SQL Editor instead; [docs/DEPLOY.md](docs/DEPLOY.md) step 2 has the extra bookkeeping row to add.
+
 ## Deploying to Vercel (Hobby)
 
 > **Step-by-step:** follow [docs/DEPLOY.md](docs/DEPLOY.md). It has exact values to paste, a `pnpm preflight` credential check, and troubleshooting.
@@ -173,9 +175,9 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
    - `AUTH_URL=https://schuster.me`
    - leave `S3_ENDPOINT` empty
    - `S3_FORCE_PATH_STYLE=false`
-3. **Settings → Domains:** add `schuster.me` (and redirect `www.schuster.me` to it). At your DNS host:
-   - point the apex `A` record to `76.76.21.21`;
-   - set `www` as a `CNAME` to `cname.vercel-dns.com`.
+3. **Settings → Domains:** add `schuster.me` as the **Production** domain and redirect `www.schuster.me` to it (Vercel may default to the reverse; fix that). At your DNS host, set the records Vercel shows under *View DNS configuration*:
+   - the apex `A` record (e.g. `216.198.79.1`; the legacy `76.76.21.21` also works);
+   - `www` as the CNAME Vercel lists, or an `A` record to the same address.
 
    Use the A/CNAME method, **not** Vercel nameservers. Leave every MX, TXT and mail CNAME alone: the IONOS mailboxes on `schuster.me` depend on them.
 4. **Resend:** verify the subdomain `mail.schuster.me` (its DNS records all live under `mail.`), then set `AUTH_RESEND_KEY` and `EMAIL_FROM`.

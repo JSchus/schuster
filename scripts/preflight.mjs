@@ -181,7 +181,8 @@ await section("S3", async () => {
 const appHost = env.AUTH_URL ? new URL(env.AUTH_URL).hostname : "";
 if (appHost && !/^(localhost|127\.|\[::1\])/.test(appHost)) {
   await section("DNS (email safety)", async () => {
-    const VERCEL_IP = "76.76.21.21";
+    // Legacy anycast IP, or the newer 216.198.79.0/24 range Vercel hands out per project.
+    const isVercelIp = (ip) => ip === "76.76.21.21" || ip.startsWith("216.198.79.");
     try {
       const mx = (await resolveMx(appHost)).sort((a, b) => a.priority - b.priority).map((r) => r.exchange);
       if (!mx.length) {
@@ -200,11 +201,12 @@ if (appHost && !/^(localhost|127\.|\[::1\])/.test(appHost)) {
 
     try {
       const a = await resolve4(appHost);
-      if (a.includes(VERCEL_IP)) ok(`${appHost} → ${VERCEL_IP} (Vercel)`);
+      const vercel = a.find(isVercelIp);
+      if (vercel) ok(`${appHost} → ${vercel} (Vercel)`);
       else
-        warn(`${appHost} → ${a.join(", ")}`, `Not pointed at Vercel yet; expected before DEPLOY.md step 7 (A @ → ${VERCEL_IP}).`);
+        warn(`${appHost} → ${a.join(", ")}`, "Not pointed at Vercel yet; expected before DEPLOY.md step 7. Use the A record from Vercel → Settings → Domains.");
     } catch (err) {
-      warn(`Couldn't resolve ${appHost} (${err.code ?? err.message})`, `Set A @ → ${VERCEL_IP} in DEPLOY.md step 7.`);
+      warn(`Couldn't resolve ${appHost} (${err.code ?? err.message})`, "Set the A record Vercel shows (DEPLOY.md step 7).");
     }
 
     const fromDomain = (env.EMAIL_FROM ?? "").match(/@([^>\s]+)/)?.[1];

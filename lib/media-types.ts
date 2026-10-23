@@ -13,3 +13,8 @@ export const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
 export function isMediaType(v: unknown): v is MediaType {
   return typeof v === "string" && (MEDIA_TYPES as readonly string[]).includes(v);
 }
+
+/** Items whose cover can be generated from the file itself (video frame, EPUB art, the photo). */
+export function canMakeCover(type: MediaType, mime: string): boolean {
+  return type === "book" || type === "video" || mime.startsWith("image/");
+}
