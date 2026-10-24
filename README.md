@@ -58,6 +58,12 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 
 ---
 
+### Reader (Stage 2)
+
+- `/read/[id]` opens EPUBs with **epub.js** and PDFs with **pdf.js** (legacy build for older iPads; its worker is copied to `public/pdf.worker.min.mjs` by `scripts/copy-pdf-worker.mjs` before `dev`/`build`). Books load from a 6-hour presigned S3 URL; PDFs stream with Range requests.
+- **Progress sync** (`components/reader/use-progress-sync.ts`, `app/api/progress/[itemId]`): every page turn is written to `localStorage`, then a debounced `PUT` (and `sendBeacon` on close). The upsert only overwrites when the incoming timestamp is newer, so late offline syncs never roll back another device. `lib/reader/progress.ts#pickResume` chooses where to open.
+- **Offline books** (`lib/reader/offline.ts`): "Keep offline" stores the file and its reader page in the `books` Cache API store; the service worker never clears it. `ProgressFlusher` sends queued positions from any page once back online.
+
 ## Project layout
 
 ```

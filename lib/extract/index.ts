@@ -6,6 +6,7 @@ import { detectMediaType, normalizeMime, titleFromFilename } from "./detect";
 import { parseEpub } from "./epub";
 import { imageSize, toCoverJpeg } from "./image";
 import { probeAudio, probeVideo } from "./media";
+import { pdfCover } from "./pdf";
 
 /** ok: cover made · none: the file has no cover to offer · failed: it has one but we couldn't make it. */
 export type CoverStatus = "ok" | "none" | "failed";
@@ -38,6 +39,7 @@ export async function extractFileInfo(file: File): Promise<Extracted> {
   };
   try {
     if (mime === "application/epub+zip") return { ...base, ...(await extractEpub(file, base.title)) };
+    if (mime === "application/pdf") return { ...base, ...(await extractPdf(file)) };
     if (base.type === "video") return { ...base, ...(await extractVideo(file)) };
     if (base.type === "audio") return { ...base, metadata: await probeAudio(file) };
     if (mime.startsWith("image/")) return { ...base, ...(await extractImage(file)) };
@@ -58,7 +60,8 @@ export async function makeCover(
 ): Promise<{ cover?: Blob; coverStatus: CoverStatus }> {
   if (type === "video") return extractVideo(source);
   const blob = typeof source === "string" ? await (await fetch(source)).blob() : source;
-  if (type === "book") return extractEpub(blob);
+  if (mime === "application/pdf") return extractPdf(blob);
+  if (mime === "application/epub+zip") return extractEpub(blob);
   if (mime.startsWith("image/")) return extractImage(blob);
   return { coverStatus: "none" };
 }
@@ -75,6 +78,16 @@ async function extractEpub(file: Blob, fallbackTitle?: string) {
     cover,
     coverStatus,
   };
+}
+
+async function extractPdf(file: Blob): Promise<{ cover?: Blob; coverStatus: CoverStatus }> {
+  try {
+    const cover = await pdfCover(file);
+    return cover ? { cover, coverStatus: "ok" } : { coverStatus: "none" };
+  } catch (err) {
+    console.warn("PDF cover failed", err);
+    return { coverStatus: "failed" };
+  }
 }
 
 async function extractVideo(source: Blob | string) {

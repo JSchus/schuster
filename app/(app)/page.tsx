@@ -1,13 +1,15 @@
 import { SearchX } from "lucide-react";
 import { Link } from "next-view-transitions";
 import { MediaGrid } from "@/components/library/media-grid";
+import { ContinueReading } from "@/components/library/continue-reading";
 import { RecentlyAdded } from "@/components/library/recently-added";
 import { SearchBox } from "@/components/library/search-box";
 import { TagFilter } from "@/components/library/tag-filter";
 import { TypeFilter } from "@/components/library/type-filter";
 import { Button } from "@/components/ui/button";
 import { withCoverUrls } from "@/lib/covers";
-import { allTags, listItems, recentItems } from "@/lib/db/queries";
+import { auth } from "@/auth";
+import { allTags, continueReading, listItems, recentItems } from "@/lib/db/queries";
 import { isMediaType, MEDIA_TYPE_LABELS } from "@/lib/media-types";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -25,10 +27,12 @@ export default async function LibraryPage({ searchParams }: Props) {
   };
   const filtered = Boolean(params.type || params.q || params.tag);
 
-  const [items, recent, tags] = await Promise.all([
+  const session = await auth();
+  const [items, recent, tags, reading] = await Promise.all([
     listItems(params).then(withCoverUrls),
     filtered ? Promise.resolve([]) : recentItems(12).then(withCoverUrls),
     allTags(30),
+    !filtered && session?.user ? readingShelf(session.user.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -42,6 +46,7 @@ export default async function LibraryPage({ searchParams }: Props) {
       <TypeFilter params={params} />
       <TagFilter tags={tags} params={params} />
 
+      <ContinueReading books={reading} />
       {!filtered && items.length > recent.length ? <RecentlyAdded items={recent} /> : null}
 
       {items.length ? (
@@ -68,4 +73,10 @@ function EmptyState({ filtered }: { filtered: boolean }) {
       </Button>
     </div>
   );
+}
+
+async function readingShelf(userId: string) {
+  const rows = await continueReading(userId);
+  const withCovers = await withCoverUrls(rows.map((r) => r.item));
+  return withCovers.map((item, i) => ({ ...item, percent: rows[i]!.percent ?? 0 }));
 }
