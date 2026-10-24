@@ -3,13 +3,12 @@ import type { Metadata } from "next";
 import { Link } from "next-view-transitions";
 import { PlayerLoader } from "@/components/player/player-loader";
 import { Button } from "@/components/ui/button";
-import { loadPlayerPage, playableItem } from "@/lib/player/page-data";
+import { loadPlayerPage, playerTitle } from "@/lib/player/page-data";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const item = await playableItem((await params).id, "video");
-  return { title: item?.title ?? "Not found" };
+  return { title: await playerTitle((await params).id, "video") };
 }
 
 /** Video player. The file streams from S3 (Range requests); Vercel only signs URLs. */

@@ -11,8 +11,9 @@ type Props = { params: Promise<{ id: string }> };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function load(id: string) {
-  if (!UUID.test(id)) return undefined;
-  const item = await getReadyItem(id);
+  const user = (await auth())?.user;
+  if (!UUID.test(id) || !user) return undefined;
+  const item = await getReadyItem(id, user);
   return item?.type === "book" && isReadable(item.mime) ? item : undefined;
 }
 

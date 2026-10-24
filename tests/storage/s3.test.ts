@@ -2,7 +2,9 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
+  DeleteObjectsCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   NotFound,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -159,5 +161,30 @@ describe("helpers", () => {
     expect(contentDisposition('Ü "x".pdf')).toBe(
       `attachment; filename="_ _x_.pdf"; filename*=UTF-8''%C3%9C%20%22x%22.pdf`,
     );
+  });
+});
+
+describe("S3StorageAdapter bulk delete", () => {
+  it("lists a prefix page by page and deletes each page", async () => {
+    s3.on(ListObjectsV2Command, { Prefix: "media/1/" })
+      .resolvesOnce({ Contents: [{ Key: "media/1/a" }, { Key: "media/1/b" }], IsTruncated: true, NextContinuationToken: "t" })
+      .resolvesOnce({ Contents: [{ Key: "media/1/c" }], IsTruncated: false });
+    s3.on(DeleteObjectsCommand).resolves({});
+    await expect(adapter.deletePrefix("media/1/")).resolves.toBe(3);
+    expect(s3.commandCalls(ListObjectsV2Command)[1]!.args[0].input.ContinuationToken).toBe("t");
+    const deletes = s3.commandCalls(DeleteObjectsCommand).map((c) => c.args[0].input.Delete!.Objects!.map((o) => o.Key));
+    expect(deletes).toEqual([["media/1/a", "media/1/b"], ["media/1/c"]]);
+  });
+
+  it("refuses an empty prefix and reports per-key errors", async () => {
+    await expect(adapter.deletePrefix("")).rejects.toThrow("whole bucket");
+    s3.on(DeleteObjectsCommand).resolves({ Errors: [{ Key: "k", Code: "AccessDenied" }] });
+    await expect(adapter.deleteMany(["k"])).rejects.toThrow("AccessDenied");
+  });
+
+  it("batches deleteMany in 1000s", async () => {
+    s3.on(DeleteObjectsCommand).resolves({});
+    await adapter.deleteMany(Array.from({ length: 1001 }, (_, i) => `k${i}`));
+    expect(s3.commandCalls(DeleteObjectsCommand).map((c) => c.args[0].input.Delete!.Objects!.length)).toEqual([1000, 1]);
   });
 });

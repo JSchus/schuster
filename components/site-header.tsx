@@ -1,12 +1,13 @@
-import { LogOut, Upload } from "lucide-react";
+import { Library, LogOut, Shield, Upload } from "lucide-react";
 import { Link } from "next-view-transitions";
 import { signOut } from "@/auth";
 import { AddPasskeyButton } from "@/components/auth/add-passkey-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { canContribute, type Role } from "@/lib/permissions";
 
-/** Sticky top bar: brand, upload, passkey prompt, theme, sign out. */
-export function SiteHeader({ user }: { user: { name?: string | null; email?: string | null } }) {
+/** Sticky top bar: brand, shelves, upload, admin, passkey prompt, theme, sign out. */
+export function SiteHeader({ user }: { user: { name?: string | null; email?: string | null; role: Role } }) {
   return (
     <header
       className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60"
@@ -19,11 +20,25 @@ export function SiteHeader({ user }: { user: { name?: string | null; email?: str
           </span>
           <span className="hidden sm:inline">Schuster Media</span>
         </Link>
-        <Button asChild size="sm">
-          <Link href="/upload">
-            <Upload /> <span className="hidden sm:inline">Upload</span>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/shelves" aria-label="Shelves">
+            <Library /> <span className="hidden sm:inline">Shelves</span>
           </Link>
         </Button>
+        {canContribute(user) ? (
+          <Button asChild size="sm">
+            <Link href="/upload">
+              <Upload /> <span className="hidden sm:inline">Upload</span>
+            </Link>
+          </Button>
+        ) : null}
+        {user.role === "admin" ? (
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/admin" aria-label="Admin" title="Admin">
+              <Shield />
+            </Link>
+          </Button>
+        ) : null}
         <AddPasskeyButton />
         <ThemeToggle />
         <form

@@ -7,7 +7,7 @@ import { biosKey, getStorage } from "@/lib/storage";
 /** A ready game item any signed-in user can play. */
 export async function playableGame(id: string) {
   const user = await requireUser();
-  const item = await getReadyItem(parseId(id));
+  const item = await getReadyItem(parseId(id), user);
   if (!item || item.type !== "game") throw new HttpError(404, "Not found");
   return { user, item };
 }

@@ -5,7 +5,7 @@ import { setStorage } from "@/lib/storage";
 
 /* ---- mocks: session + an in-memory media_items table ---- */
 
-const session = vi.hoisted(() => ({ current: null as null | { user: { id: string } } }));
+const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; role: string } } }));
 vi.mock("@/auth", () => ({ auth: async () => session.current }));
 
 const rows = vi.hoisted(() => new Map<string, MediaItem>());
@@ -41,7 +41,7 @@ beforeEach(() => {
   rows.clear();
   storage = new MemoryStorageAdapter();
   setStorage(storage);
-  session.current = { user: { id: "user-1" } };
+  session.current = { user: { id: "user-1", role: "member" } };
 });
 
 const initBody = {
@@ -59,6 +59,11 @@ describe("upload API", () => {
     session.current = null;
     const res = await init(post(initBody));
     expect(res.status).toBe(401);
+  });
+
+  it("doesn't let viewers upload", async () => {
+    session.current = { user: { id: "user-1", role: "viewer" } };
+    expect((await init(post(initBody))).status).toBe(403);
   });
 
   it("validates the init body", async () => {
@@ -104,7 +109,7 @@ describe("upload API", () => {
 
   it("only the uploader can touch a pending item", async () => {
     const { itemId } = await (await init(post(initBody))).json();
-    session.current = { user: { id: "someone-else" } };
+    session.current = { user: { id: "someone-else", role: "member" } };
     expect((await presignParts(post({ partNumbers: [1] }), ctx(itemId))).status).toBe(404);
     expect((await cancel(new Request("http://test"), ctx(itemId))).status).toBe(404);
   });

@@ -47,22 +47,22 @@ Follow-ups: CloudFront signed cookies (cheaper egress), a MediaConvert job for f
 
 Follow-ups: netplay, more consoles (DS, PSP: these need threads and COOP/COEP), multiple save slots, cheats, cover art for games (box-art lookup or a screenshot from the first cloud save).
 
-## Stage 5: Sharing, roles and invites
+## Stage 5: Sharing, roles and invites ✅
 
-- Roles: `admin`, `member`, and possibly `viewer` (can't upload) and `kid` (filtered shelves).
-- **Invites** replace `ALLOWED_EMAILS`:
-  - an admin creates an invite link (a token in an `invites` table, with expiry and max uses);
-  - opening it lets someone register a passkey directly.
-- Collections / shelves: named groups of items, private or shared with specific users.
-- Per-item visibility: everyone (default), specific people, or just me.
-- Public share links: time-limited, optionally password-protected, for a single item. They reuse presigned GETs and never expose the bucket.
-- Item editing: title, tags, cover replacement and deletion (uploader or admin). Deleting removes the S3 objects.
-- Admin page: users, roles, storage usage per user, and pending/orphaned uploads.
-- Audit log of uploads, deletes and shares.
+- Roles: `admin`, `member` (uploads and shares), `viewer` (can't upload). A role change or removal applies within 5 minutes.
+- **Invites:** the admin makes a link with a role, an expiry and a number of uses; opening it approves the person's email and they create a passkey. Admins can also approve an email directly. `ALLOWED_EMAILS` still works as a fallback.
+- **Shelves:** named groups of items, visible to everyone, specific people, or only their owner.
+- **Per-item visibility:** everyone (default), specific people, or only the uploader. Admins see everything.
+- **Public share links:** 1, 7 or 30 days, optional password, download on/off for playable media. Presigned GETs never outlive the link.
+- **Item editing:** title, author, description, tags, visibility, cover (generated or a picture). Deleting removes every S3 object of the item, including everyone's cloud saves.
+- **Admin page:** people, roles, uploads and storage per person, invite links, approved emails, cleanup of unfinished uploads.
+- Migrations run automatically on Vercel production builds.
+
+Follow-ups: audit log (uploads, deletes, shares), a `kid` role with filtered shelves, choosing visibility at upload time, reading a shared EPUB/PDF in the browser instead of downloading, rate limiting share-link passwords (needs a KV store).
 
 ## Deferred / housekeeping
 
-- A daily Vercel Cron (Hobby allows daily) that deletes `pending` rows older than 3 days. The S3 lifecycle rule already aborts the parts.
+- A daily Vercel Cron (Hobby allows daily) that deletes `pending` rows older than 3 days (the admin page can already clean them up by hand). The S3 lifecycle rule already aborts the parts.
 - Full-text search with Postgres `tsvector` (title, author, description, tags) and fuzzy matching via `pg_trgm`.
 - Duplicate detection: SHA-256 computed in a Web Worker before upload.
 - Thumbnails at several sizes; a blurhash placeholder in `metadata`.

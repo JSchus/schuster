@@ -1,6 +1,5 @@
 import type { DefaultSession } from "next-auth";
-
-type Role = "admin" | "member";
+import type { Role } from "@/lib/permissions";
 
 declare module "next-auth" {
   interface Session {
@@ -11,5 +10,7 @@ declare module "next-auth" {
 declare module "@auth/core/jwt" {
   interface JWT {
     role?: Role;
+    /** When the role was last read from the database (ms). */
+    roleAt?: number;
   }
 }
