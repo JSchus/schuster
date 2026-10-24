@@ -1,11 +1,13 @@
 import "server-only";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { db } from "./index";
-import { mediaItems, shares, type MediaItem, type Share } from "./schema";
+import { shares, type Share } from "./schema";
 
 export async function createShare(values: {
   token: string;
-  itemId: string;
+  /** Exactly one of itemId / playlistId. */
+  itemId?: string;
+  playlistId?: string;
   createdBy: string;
   expiresAt: Date;
   passwordHash: string | null;
@@ -16,12 +18,19 @@ export async function createShare(values: {
   return row;
 }
 
+const working = () => and(isNull(shares.revokedAt), gt(shares.expiresAt, new Date()));
+
 /** An item's links that still work, newest first. */
 export async function activeSharesForItem(itemId: string): Promise<Share[]> {
+  return db().select().from(shares).where(and(eq(shares.itemId, itemId), working())).orderBy(desc(shares.createdAt));
+}
+
+/** A playlist's links that still work, newest first. */
+export async function activeSharesForPlaylist(playlistId: string): Promise<Share[]> {
   return db()
     .select()
     .from(shares)
-    .where(and(eq(shares.itemId, itemId), isNull(shares.revokedAt), gt(shares.expiresAt, new Date())))
+    .where(and(eq(shares.playlistId, playlistId), working()))
     .orderBy(desc(shares.createdAt));
 }
 
@@ -34,21 +43,9 @@ export async function revokeShare(token: string) {
   await db().update(shares).set({ revokedAt: new Date() }).where(eq(shares.token, token));
 }
 
-/** A working share link and its (ready) item. */
-export async function openShare(token: string): Promise<{ share: Share; item: MediaItem } | undefined> {
-  const [row] = await db()
-    .select({ share: shares, item: mediaItems })
-    .from(shares)
-    .innerJoin(mediaItems, eq(mediaItems.id, shares.itemId))
-    .where(
-      and(
-        eq(shares.token, token),
-        isNull(shares.revokedAt),
-        gt(shares.expiresAt, new Date()),
-        eq(mediaItems.status, "ready"),
-      ),
-    )
-    .limit(1);
+/** A share link that still works (not turned off, not expired). */
+export async function workingShare(token: string): Promise<Share | undefined> {
+  const [row] = await db().select().from(shares).where(and(eq(shares.token, token), working())).limit(1);
   return row;
 }
 

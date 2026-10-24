@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -242,15 +243,15 @@ export const approvedEmails = pgTable("approved_emails", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Public, time-limited links to one item for people without an account. */
+/** Public, time-limited links to one item or one playlist, for people without an account. */
 export const shares = pgTable(
   "shares",
   {
     /** The secret in the link (/s/{token}). */
     token: text("token").primaryKey(),
-    itemId: uuid("item_id")
-      .notNull()
-      .references(() => mediaItems.id, { onDelete: "cascade" }),
+    /** Exactly one of itemId / playlistId is set. */
+    itemId: uuid("item_id").references(() => mediaItems.id, { onDelete: "cascade" }),
+    playlistId: uuid("playlist_id").references(() => playlists.id, { onDelete: "cascade" }),
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -262,7 +263,11 @@ export const shares = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("shares_item_idx").on(t.itemId)],
+  (t) => [
+    index("shares_item_idx").on(t.itemId),
+    index("shares_playlist_idx").on(t.playlistId),
+    check("shares_one_target", sql`(${t.itemId} is null) <> (${t.playlistId} is null)`),
+  ],
 );
 
 /** Named collections of items. */
@@ -313,9 +318,64 @@ export const shelfAccess = pgTable(
   (t) => [primaryKey({ columns: [t.shelfId, t.userId] }), index("shelf_access_user_idx").on(t.userId)],
 );
 
+/* ------------------------------------------------------------------ */
+/* Playlists                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Ordered lists of audio items. Anyone signed in (viewers too) can make them. */
+export const playlists = pgTable(
+  "playlists",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    description: text("description"),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    visibility: visibility("visibility").notNull().default("everyone"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("playlists_owner_idx").on(t.ownerId)],
+);
+
+export const playlistTracks = pgTable(
+  "playlist_tracks",
+  {
+    playlistId: uuid("playlist_id")
+      .notNull()
+      .references(() => playlists.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => mediaItems.id, { onDelete: "cascade" }),
+    /** Play order (ascending). Gaps are fine; reorder rewrites 0..n-1. */
+    position: integer("position").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.playlistId, t.itemId] }), index("playlist_tracks_item_idx").on(t.itemId)],
+);
+
+/** People a playlist with visibility "people" is shared with. */
+export const playlistAccess = pgTable(
+  "playlist_access",
+  {
+    playlistId: uuid("playlist_id")
+      .notNull()
+      .references(() => playlists.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.playlistId, t.userId] }), index("playlist_access_user_idx").on(t.userId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
 export type Invite = typeof invites.$inferSelect;
 export type Share = typeof shares.$inferSelect;
 export type Shelf = typeof shelves.$inferSelect;
+export type Playlist = typeof playlists.$inferSelect;

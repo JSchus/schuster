@@ -7,8 +7,13 @@
  *   which carry expiring signatures and can be gigabytes).
  * - The "books" cache (written by the page for "Keep offline") holds book
  *   files and their /read/{id} pages; it is never cleared on upgrade.
+ * - The "audio" cache holds songs of offline playlists (and their pages).
+ *   /offline-audio/{id} is answered from it with Range support (sw-range.js),
+ *   which Safari needs to play media. Never cleared on upgrade either.
  */
-const VERSION = "v2";
+importScripts("/sw-range.js");
+
+const VERSION = "v3";
 const STATIC_CACHE = `static-${VERSION}`;
 const PAGES_CACHE = `pages-${VERSION}`;
 const PRECACHE = ["/offline", "/icons/192.png", "/icons/512.png", "/manifest.webmanifest", "/pdf.worker.min.mjs"];
@@ -48,6 +53,11 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.startsWith("/offline-audio/")) {
+    event.respondWith(offlineAudio(req, url));
+    return;
+  }
   if (url.pathname.startsWith("/api/")) return;
 
   if (
@@ -63,6 +73,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirstPage(req));
   }
 });
+
+async function offlineAudio(req, url) {
+  const cached = await (await caches.open("audio")).match(url.pathname);
+  if (!cached) return new Response("Not kept offline", { status: 404 });
+  return self.SwRange.rangeResponse(cached, req.headers.get("Range"));
+}
 
 async function cacheFirst(req) {
   const cached = await caches.match(req);

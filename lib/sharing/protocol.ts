@@ -45,6 +45,12 @@ export type ShelfBody = z.input<typeof shelfSchema>;
 
 export const shelfItemSchema = z.object({ itemId: z.string().uuid() });
 
+/** Playlists take the same fields as shelves. */
+export const playlistSchema = shelfSchema;
+export type PlaylistBody = ShelfBody;
+export const trackSchema = z.object({ itemId: z.string().uuid() });
+export const reorderSchema = z.object({ itemIds: z.array(z.string().uuid()).max(2000) });
+
 export const INVITE_DAYS = [1, 7, 30] as const;
 
 export const inviteCreateSchema = z.object({

@@ -1,8 +1,9 @@
-import { Download, Link2Off, Lock } from "lucide-react";
+import { Download, Link2Off, ListMusic, Lock } from "lucide-react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Cover } from "@/components/library/cover";
+import { PlaylistPlayer } from "@/components/player/playlist-player";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { withCoverUrls } from "@/lib/covers";
 import { countShareView, getShare } from "@/lib/db/shares";
 import { env } from "@/lib/env";
-import { inlineKind, resolveShare, shareUrlLifetime } from "@/lib/sharing/open";
+import { toPlayerTracks } from "@/lib/player/playlist-tracks";
+import { inlineKind, resolveShare, sharedPlaylistTracks, shareUrlLifetime } from "@/lib/sharing/open";
 import { isTokenShape, shareCookieName, shareUnlockValue, verifyPassword } from "@/lib/sharing/tokens";
 import { getStorage } from "@/lib/storage";
 import { formatBytes } from "@/lib/utils";
@@ -91,6 +93,31 @@ export default async function SharePage({ params, searchParams }: Props) {
     );
   }
 
+  if (found.kind === "playlist") {
+    const { share, playlist } = found;
+    await countShareView(token);
+    const tracks = await toPlayerTracks(await sharedPlaylistTracks(share), shareUrlLifetime(share.expiresAt));
+    return (
+      <Shell>
+        <article className="grid w-full max-w-xl gap-6">
+          <div className="grid gap-1 text-center">
+            <ListMusic className="mx-auto size-8 text-muted-foreground" />
+            <h1 className="text-2xl font-semibold tracking-tight text-balance">{playlist.name}</h1>
+            {playlist.description ? <p className="text-muted-foreground">{playlist.description}</p> : null}
+          </div>
+          <PlaylistPlayer
+            playlistId={`share-${playlist.id}`}
+            name={playlist.name}
+            tracks={tracks}
+            downloadPrefix={share.allowDownload ? `/api/s/${token}/download?item=` : undefined}
+            noDownload={!share.allowDownload}
+          />
+          <ShareFooter expiresAt={share.expiresAt} />
+        </article>
+      </Shell>
+    );
+  }
+
   const { share, item } = found;
   await countShareView(token);
   const kind = inlineKind(item);
@@ -141,13 +168,19 @@ export default async function SharePage({ params, searchParams }: Props) {
               </a>
             </Button>
           ) : null}
-          <p className="text-xs text-muted-foreground">
-            Shared from Schuster Media · link works until{" "}
-            {share.expiresAt.toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "America/Chicago" })}
-          </p>
+          <ShareFooter expiresAt={share.expiresAt} />
         </div>
       </article>
     </Shell>
+  );
+}
+
+function ShareFooter({ expiresAt }: { expiresAt: Date }) {
+  return (
+    <p className="text-center text-xs text-muted-foreground">
+      Shared from Schuster Media · link works until{" "}
+      {expiresAt.toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "America/Chicago" })}
+    </p>
   );
 }
 

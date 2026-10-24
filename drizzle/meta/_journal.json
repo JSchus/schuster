@@ -15,6 +15,13 @@
       "when": 1792865564048,
       "tag": "0001_stage5_sharing",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792869405555,
+      "tag": "0002_playlists",
+      "breakpoints": true
     }
   ]
 }

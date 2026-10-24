@@ -241,6 +241,14 @@ Nothing to set up in AWS, Neon or Vercel: the first production deploy of Stage 5
 - [ ] **Share with someone who has no account:** item → *Share link* → choose 1, 7 or 30 days and optionally a password → the link is copied. *Turn off* stops it at once.
 - [ ] **Change a role or remove someone:** Admin → *People*. It takes effect within 5 minutes; their uploads stay.
 
+## 11. Playlists
+
+Nothing to set up: the next production deploy adds the tables itself.
+
+- [ ] **Make one:** *Playlists* in the header → *New playlist*, then *Edit songs* to add, reorder or remove songs. Or open any song → *Playlists*.
+- [ ] **Offline:** on a playlist, *Keep offline*. On iPhone, add the site to the Home Screen first: iOS keeps an installed app's offline files much longer than Safari's.
+- [ ] **Share:** *Share link* on the playlist (members and admins), like sharing a single item.
+
 ## Troubleshooting
 
 | Symptom | Cause → fix |
@@ -256,6 +264,7 @@ Nothing to set up in AWS, Neon or Vercel: the first production deploy of Stage 5
 | Magic link lands in spam | The Resend records under `mail.` aren't all verified yet. Wait for every record to show green in Resend. |
 | IONOS mail stopped arriving | The MX records on `@` were changed or deleted, or the nameservers were switched. Restore them from your step-0 screenshot; `pnpm preflight` shows the current MX. |
 | `500` on every page right after deploy | An env var is missing or misspelled. Vercel → *Logs* shows `Invalid environment: …` with the variable name. |
+| Offline playlist disappeared on iPhone | iOS clears website storage that isn't used for a few weeks. Use the Home Screen app and open it now and then, or tap *Keep offline* again. |
 | Web game shows "AccessDenied" | The bucket policy from step 9 is missing, or Block Public Access still blocks bucket policies. |
 | Console game says the BIOS is missing | PS1 needs a BIOS file; the admin adds it on any PlayStation game's page. |
 | Library loads but covers are broken | S3 credentials or region are wrong in Vercel. Covers are presigned GETs. |

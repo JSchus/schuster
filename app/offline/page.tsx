@@ -1,5 +1,6 @@
 import { WifiOff } from "lucide-react";
 import { OfflineBooks } from "@/components/offline-books";
+import { OfflinePlaylists } from "@/components/playlists/offline-playlists";
 
 export const metadata = { title: "Offline" };
 export const dynamic = "force-static";
@@ -12,9 +13,10 @@ export default function OfflinePage() {
         <WifiOff className="size-10 text-muted-foreground" />
         <h1 className="text-xl font-semibold">You&apos;re offline</h1>
         <p className="max-w-xs text-muted-foreground">
-          Most of Schuster Media needs a connection. Books you kept offline still open.
+          Most of Schuster Media needs a connection. Books and playlists you kept offline still work.
         </p>
         <OfflineBooks />
+        <OfflinePlaylists />
       </div>
     </main>
   );

@@ -58,3 +58,11 @@ export function canView(
   if (thing.visibility === "everyone") return true;
   return thing.visibility === "people" && listed;
 }
+
+/**
+ * Change a playlist: its owner (any role; a playlist only lists songs, it
+ * adds no files) or an admin.
+ */
+export function canEditPlaylist(user: Viewer | null | undefined, ownerId: string): boolean {
+  return !!user && (user.role === "admin" || user.id === ownerId);
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Library, Loader2, Pencil, Share2, Trash2 } from "lucide-react";
+import { Library, ListMusic, Loader2, Pencil, Share2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import type { Person } from "@/lib/db/people";
 import { sendJson } from "@/lib/sharing/client";
 
-type Panel = "edit" | "share" | "shelves" | null;
+type Panel = "edit" | "share" | "shelves" | "playlists" | null;
 
 type Props = {
   item: EditableItem;
@@ -19,6 +19,8 @@ type Props = {
   canEdit: boolean;
   /** Shelves this person may add the item to; undefined for viewers. */
   shelves?: PickerShelf[];
+  /** Songs only: this person's playlists (anyone can make playlists). */
+  playlists?: PickerShelf[];
   people: Person[];
   access: string[];
   /** Video, audio or image: the share page plays/shows it inline. */
@@ -26,7 +28,7 @@ type Props = {
 };
 
 /** Edit / Share / Shelves / Delete buttons, each opening its panel below. */
-export function ItemActions({ item, canEdit, shelves, people, access, inline }: Props) {
+export function ItemActions({ item, canEdit, shelves, playlists, people, access, inline }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<Panel>(null);
   const [deleting, setDeleting] = useState(false);
@@ -46,7 +48,7 @@ export function ItemActions({ item, canEdit, shelves, people, access, inline }: 
     }
   }
 
-  if (!canEdit && !shelves) return null;
+  if (!canEdit && !shelves && !playlists) return null;
 
   return (
     <div className="grid gap-3">
@@ -66,6 +68,11 @@ export function ItemActions({ item, canEdit, shelves, people, access, inline }: 
             <Library /> Shelves
           </Button>
         ) : null}
+        {playlists ? (
+          <Button variant={open === "playlists" ? "secondary" : "outline"} size="sm" onClick={() => toggle("playlists")}>
+            <ListMusic /> Playlists
+          </Button>
+        ) : null}
         {canEdit ? (
           <Button variant="ghost" size="sm" className="text-destructive" onClick={remove} disabled={deleting}>
             {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />} Delete
@@ -73,8 +80,9 @@ export function ItemActions({ item, canEdit, shelves, people, access, inline }: 
         ) : null}
       </div>
       {open === "edit" ? <EditItemForm item={item} people={people} access={access} onDone={() => setOpen(null)} /> : null}
-      {open === "share" ? <SharePanel itemId={item.id} inline={inline} /> : null}
+      {open === "share" ? <SharePanel endpoint={`/api/items/${item.id}/shares`} inline={inline} /> : null}
       {open === "shelves" && shelves ? <ShelfPicker itemId={item.id} shelves={shelves} /> : null}
+      {open === "playlists" && playlists ? <ShelfPicker itemId={item.id} shelves={playlists} kind="playlist" /> : null}
     </div>
   );
 }

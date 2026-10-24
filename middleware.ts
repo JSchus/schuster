@@ -6,6 +6,6 @@ export const { auth: middleware } = NextAuth(authConfig);
 export const config = {
   // Everything except static assets, PWA files and icons.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|icons/|manifest.webmanifest|sw.js|emulatorjs/|.*\\.(?:png|svg|jpg|webp|ico|txt|mjs)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|icons/|manifest.webmanifest|sw.js|sw-range.js|emulatorjs/|.*\\.(?:png|svg|jpg|webp|ico|txt|mjs)$).*)",
   ],
 };
