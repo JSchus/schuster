@@ -9,8 +9,9 @@ import {
   savePlaylistOffline,
 } from "@/lib/player/offline-audio";
 import { nextIndex, prevIndex, shuffled } from "@/lib/player/queue";
+import { pickSource } from "@/lib/player/source";
 
-const { parseRange, rangeResponse } = createRequire(import.meta.url)("../../public/sw-range.js");
+const { parseRange, rangeResponse, rangeFromBlob, OPEN_RANGE_CAP } = createRequire(import.meta.url)("../../public/sw-range.js");
 
 function fakeDeps() {
   const store = new Map<string, string>();
@@ -103,6 +104,32 @@ describe("service-worker byte ranges", () => {
     expect(whole.status).toBe(200);
     expect(whole.headers.get("Accept-Ranges")).toBe("bytes");
     expect((await rangeResponse(full(), "bytes=20-")).status).toBe(416);
+  });
+});
+
+describe("service worker stays light", () => {
+  it("caps an open-ended range at 2 MB; the player asks for the rest", async () => {
+    const size = 5 * 1024 * 1024;
+    const blob = new Blob([new Uint8Array(size)]);
+    const first = rangeFromBlob(blob, "audio/mpeg", "bytes=0-");
+    expect(first.status).toBe(206);
+    expect(first.headers.get("Content-Range")).toBe(`bytes 0-${OPEN_RANGE_CAP - 1}/${size}`);
+    expect(Number(first.headers.get("Content-Length"))).toBe(OPEN_RANGE_CAP);
+    const tail = rangeFromBlob(blob, "audio/mpeg", `bytes=${size - 10}-`);
+    expect(tail.headers.get("Content-Range")).toBe(`bytes ${size - 10}-${size - 1}/${size}`);
+    // An explicit end is honoured as asked.
+    expect(rangeFromBlob(blob, "audio/mpeg", "bytes=0-3145727").headers.get("Content-Length")).toBe("3145728");
+  });
+});
+
+describe("where a song plays from", () => {
+  const net = { id: "a", src: "https://bucket.s3/x?sig" };
+  it("uses S3 online, the device copy offline or after a network error", () => {
+    expect(pickSource(net, { online: true, kept: true, failed: false })).toBe(net.src);
+    expect(pickSource(net, { online: false, kept: true, failed: false })).toBe("/offline-audio/a");
+    expect(pickSource(net, { online: true, kept: true, failed: true })).toBe("/offline-audio/a");
+    expect(pickSource(net, { online: false, kept: false, failed: false })).toBe(net.src);
+    expect(pickSource({ id: "a", src: "/offline-audio/a" }, { online: true, kept: false, failed: false })).toBe("/offline-audio/a");
   });
 });
 

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 
 /** Fired on window when offline songs change, so players switch sources. */
 export const OFFLINE_AUDIO_EVENT = "offline-audio-changed";
-import { offlineAudioUrl, offlineTrackIds } from "@/lib/player/offline-audio";
+import { offlineTrackIds } from "@/lib/player/offline-audio";
+import { pickSource } from "@/lib/player/source";
 import { nextIndex, prevIndex, shuffled, type RepeatMode } from "@/lib/player/queue";
 import { saveTrackProgress } from "@/lib/player/track-progress";
 import { cn, formatDuration } from "@/lib/utils";
@@ -57,6 +58,9 @@ export function PlaylistPlayer({ playlistId, name, tracks: initial, refreshUrl, 
   const el = useRef<HTMLAudioElement>(null);
   const [tracks, setTracks] = useState(initial);
   const [offline, setOffline] = useState<Set<string>>(new Set());
+  const [online, setOnline] = useState(true);
+  /** Songs whose network URL failed: they fall back to the device copy. */
+  const [failed, setFailed] = useState<Set<string>>(new Set());
   const [order, setOrder] = useState(() => initial.map((_, i) => i));
   const [pos, setPos] = useState(0);
   const [shuffle, setShuffle] = useState(false);
@@ -70,7 +74,10 @@ export function PlaylistPlayer({ playlistId, name, tracks: initial, refreshUrl, 
 
   const index = order[pos] ?? 0;
   const current = tracks[index];
-  const srcOf = useCallback((t: PlayerTrack) => (offline.has(t.id) ? offlineAudioUrl(t.id) : t.src), [offline]);
+  const srcOf = useCallback(
+    (t: PlayerTrack) => pickSource(t, { online, kept: offline.has(t.id), failed: failed.has(t.id) }),
+    [online, offline, failed],
+  );
   const currentSrc = current ? srcOf(current) : "";
 
   // Offline copies (and when they change) and where we left off: client-only state.
@@ -79,6 +86,20 @@ export function PlaylistPlayer({ playlistId, name, tracks: initial, refreshUrl, 
     load();
     window.addEventListener(OFFLINE_AUDIO_EVENT, load);
     return () => window.removeEventListener(OFFLINE_AUDIO_EVENT, load);
+  }, []);
+  // Connection changes switch between S3 and the device copy at the same spot.
+  useEffect(() => {
+    const update = () => {
+      if (el.current?.currentTime) pendingSeek.current = el.current.currentTime;
+      setOnline(navigator.onLine);
+    };
+    setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
   }, []);
   useEffect(() => {
     const saved = readPos(playlistId);
@@ -186,7 +207,14 @@ export function PlaylistPlayer({ playlistId, name, tracks: initial, refreshUrl, 
   async function onError() {
     const a = el.current;
     if (!current || !a) return;
-    if (refreshUrl && !refreshed.current && !offline.has(current.id)) {
+    const onDevice = currentSrc.startsWith("/offline-audio/");
+    // Network trouble with a song kept on this device: play the device copy.
+    if (!onDevice && offline.has(current.id) && !failed.has(current.id)) {
+      pendingSeek.current = a.currentTime || pendingSeek.current;
+      setFailed((f) => new Set(f).add(current.id));
+      return;
+    }
+    if (refreshUrl && !refreshed.current && !onDevice) {
       refreshed.current = true;
       try {
         const res = await fetch(refreshUrl, { cache: "no-store" });
