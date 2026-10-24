@@ -71,6 +71,12 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - Subtitles: `components/player/subtitle-manager.tsx` converts SRT→VTT in the browser (`lib/player/subtitles.ts`) and uploads via `/api/items/[id]/subtitles`. Tracks are listed in `metadata.subtitles`, and the media element uses `crossOrigin="anonymous"` so cross-origin tracks load.
 - Expired URLs: one automatic refresh through `/api/items/[id]/stream`, which remounts the element and seeks back.
 
+### Games (Stage 4)
+
+- **EmulatorJS** is self-hosted: `scripts/copy-emulatorjs.mjs` (run by `pnpm assets` before `dev`/`build`) copies `@emulatorjs/emulatorjs` and 7 pinned cores into `public/emulatorjs/` (about 17 MB, gitignored). It also joins the sources into the `emulator.min.js` the loader expects. Consoles and cores are listed in `lib/games/systems.ts`.
+- **`components/games/emulator.tsx`** sets the `EJS_*` globals. Its `EJS_onSaveState`/`EJS_onLoadState`/`EJS_onGameStart` hooks sync save states and in-game saves to `saves/{userId}/{itemId}/` through `/api/games/[id]/saves`. The user id always comes from the session.
+- **Web games:** `lib/games/publish.ts` unzips in the browser and PUTs each file (with the right Content-Type, e.g. `application/wasm`) to `webgames/{id}/`. `infra/s3-webgames-policy.json` makes only that prefix publicly readable. Games play in a sandboxed iframe on S3's origin.
+
 ## Project layout
 
 ```

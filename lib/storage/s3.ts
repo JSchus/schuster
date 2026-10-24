@@ -31,9 +31,16 @@ export type S3AdapterConfig = {
 export class S3StorageAdapter implements StorageAdapter {
   readonly bucket: string;
   readonly client: S3Client;
+  /** Endpoint + addressing used to build unsigned URLs (see publicObjectUrl). */
+  private readonly publicBase: { endpoint?: string; region: string; pathStyle: boolean };
 
   constructor(config: S3AdapterConfig) {
     this.bucket = config.bucket;
+    this.publicBase = {
+      endpoint: typeof config.clientConfig?.endpoint === "string" ? config.clientConfig.endpoint : undefined,
+      region: typeof config.clientConfig?.region === "string" ? config.clientConfig.region : "us-east-1",
+      pathStyle: !!config.clientConfig?.forcePathStyle,
+    };
     this.client =
       config.client ??
       new S3Client({
@@ -127,7 +134,7 @@ export class S3StorageAdapter implements StorageAdapter {
   async head(key: string) {
     try {
       const res = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
-      return { size: res.ContentLength ?? 0, contentType: res.ContentType };
+      return { size: res.ContentLength ?? 0, contentType: res.ContentType, lastModified: res.LastModified };
     } catch (err) {
       if (err instanceof NotFound || (err as { name?: string }).name === "NotFound") return null;
       throw err;
@@ -137,6 +144,29 @@ export class S3StorageAdapter implements StorageAdapter {
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
+
+  publicUrl(key: string): string {
+    return publicObjectUrl(this.publicBase, this.bucket, key);
+  }
+}
+
+/**
+ * Unsigned object URL. AWS: virtual-hosted (https://bucket.s3.region.amazonaws.com/key);
+ * custom endpoints (MinIO, emulators): path-style. Key segments are URL-encoded.
+ */
+export function publicObjectUrl(
+  base: { endpoint?: string; region: string; pathStyle: boolean },
+  bucket: string,
+  key: string,
+): string {
+  const path = key.split("/").map(encodeURIComponent).join("/");
+  if (base.endpoint) {
+    const e = base.endpoint.replace(/\/$/, "");
+    if (base.pathStyle) return `${e}/${bucket}/${path}`;
+    const u = new URL(e);
+    return `${u.protocol}//${bucket}.${u.host}/${path}`;
+  }
+  return `https://${bucket}.s3.${base.region}.amazonaws.com/${path}`;
 }
 
 /** Round `date` down to a multiple of `seconds` since the epoch. */

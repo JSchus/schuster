@@ -5,7 +5,17 @@ import { S3StorageAdapter } from "./s3";
 import type { StorageAdapter } from "./types";
 
 export type { StorageAdapter } from "./types";
-export { coverKey, isCoverKeyFor, isSubtitleKeyFor, mediaKey, subtitleKey } from "./keys";
+export {
+  biosKey,
+  coverKey,
+  isCoverKeyFor,
+  isSubtitleKeyFor,
+  mediaKey,
+  saveKey,
+  subtitleKey,
+  webGameKey,
+} from "./keys";
+export type { SaveKind } from "./keys";
 
 let instance: StorageAdapter | undefined;
 

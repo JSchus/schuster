@@ -114,6 +114,10 @@ export type MediaMetadata = {
   originalFilename?: string;
   /** WebVTT tracks for videos (Stage 3). */
   subtitles?: { lang: string; label: string; key: string }[];
+  /** Retro games: the console (a key of SYSTEMS in lib/games/systems.ts). */
+  system?: string;
+  /** HTML5 web games: entry page inside webgames/{id}/, published after upload. */
+  web?: { entry: string; status: "pending" | "ready"; files?: number; publishedAt?: string };
 };
 
 export const mediaItems = pgTable(

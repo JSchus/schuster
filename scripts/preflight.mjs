@@ -175,6 +175,24 @@ await section("S3", async () => {
 
   await s3.send(new DeleteObjectCommand({ Bucket, Key: key }));
   ok("DELETE (cleaned up)");
+
+  // Web games (Stage 4) are served unsigned from webgames/, which the bucket
+  // policy in infra/s3-webgames-policy.json makes public. Nothing else is.
+  const webKey = "webgames/_preflight.txt";
+  await s3.send(new PutObjectCommand({ Bucket, Key: webKey, Body: "ok", ContentType: "text/plain" }));
+  const base = env.S3_ENDPOINT
+    ? `${env.S3_ENDPOINT.replace(/\/$/, "")}/${Bucket}`
+    : `https://${Bucket}.s3.${env.S3_REGION || "us-east-1"}.amazonaws.com`;
+  const pub = await fetch(`${base}/${webKey}`);
+  check(
+    pub.status === 200,
+    "webgames/ folder is publicly readable (web games can load)",
+    `webgames/ isn't public (HTTP ${pub.status})`,
+    "Add infra/s3-webgames-policy.json as the bucket policy and allow bucket policies in Block Public Access (DEPLOY.md, web games).",
+  );
+  const priv = await fetch(`${base}/preflight/${Date.now()}.txt`);
+  check(priv.status === 403 || priv.status === 404, "the rest of the bucket stays private", `objects outside webgames/ answered ${priv.status}`, "The bucket policy must only cover webgames/*.");
+  await s3.send(new DeleteObjectCommand({ Bucket, Key: webKey }));
 });
 
 // The apex domain also hosts IONOS mailboxes: make sure the deploy hasn't broken them.

@@ -6,6 +6,7 @@ import {
   userProgress,
   users,
   type MediaItem,
+  type MediaMetadata,
   type MediaType,
   type NewMediaItem,
 } from "./schema";
@@ -60,6 +61,14 @@ export async function setSubtitles(id: string, subtitles: { lang: string; label:
   await db()
     .update(mediaItems)
     .set({ metadata: sql`${mediaItems.metadata} || jsonb_build_object('subtitles', ${JSON.stringify(subtitles)}::jsonb)` })
+    .where(eq(mediaItems.id, id));
+}
+
+/** Merge fields into a game's metadata (system, web publish state). */
+export async function setGameMeta(id: string, patch: Pick<MediaMetadata, "system" | "web">) {
+  await db()
+    .update(mediaItems)
+    .set({ metadata: sql`${mediaItems.metadata} || ${JSON.stringify(patch)}::jsonb` })
     .where(eq(mediaItems.id, id));
 }
 

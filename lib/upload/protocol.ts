@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { SYSTEM_IDS } from "@/lib/games/systems";
+import { safeGamePath } from "@/lib/games/web";
 import { MEDIA_TYPES } from "@/lib/media-types";
 import { MAX_PARTS } from "./plan";
 
@@ -16,6 +18,9 @@ export const metadataSchema = z
     width: z.number().int().positive().optional(),
     height: z.number().int().positive().optional(),
     originalFilename: z.string().max(500).optional(),
+    system: z.enum(SYSTEM_IDS as [string, ...string[]]).optional(),
+    // Always stored as "pending" (see the init route); it becomes "ready" only after publishing.
+    web: z.object({ entry: z.string().min(1).max(300).refine((e) => !!safeGamePath(e), "Invalid entry path"), status: z.enum(["pending", "ready"]) }).strict().optional(),
   })
   .strict();
 

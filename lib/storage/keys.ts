@@ -28,6 +28,23 @@ export function coverKey(itemId: string, version?: number): string {
   return version ? `covers/${itemId}-${version}.jpg` : `covers/${itemId}.jpg`;
 }
 
+/** A web game's files live under webgames/{itemId}/ (the only public prefix). */
+export function webGameKey(itemId: string, path: string): string {
+  return `webgames/${itemId}/${path}`;
+}
+
+export const SAVE_KINDS = ["state", "screenshot", "sram"] as const;
+export type SaveKind = (typeof SAVE_KINDS)[number];
+
+/** Per-user cloud saves; the user id always comes from the session, never the client. */
+export function saveKey(userId: string, itemId: string, kind: SaveKind): string {
+  return `saves/${userId}/${itemId}/${kind}.bin`;
+}
+
+export function biosKey(system: string, filename: string): string {
+  return `bios/${system}/${filename}`;
+}
+
 /** Versioned WebVTT key for one subtitle language. */
 export function subtitleKey(itemId: string, lang: string, version: number): string {
   return `subs/${itemId}/${lang}-${version}.vtt`;

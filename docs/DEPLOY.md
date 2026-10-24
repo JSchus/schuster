@@ -216,6 +216,21 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
 
 ---
 
+## 9. Web games (Stage 4, ≈5 min)
+
+HTML5 games run from a **public `webgames/` folder** in the bucket, on S3's own web address, so they can't see your schuster.me login. Everything else in the bucket stays private.
+
+- [ ] **Allow a bucket policy.** S3 → `schuster-media` → *Permissions* → *Block public access (bucket settings)* → *Edit*:
+  - **untick** "Block public access to buckets and objects granted through *new public bucket or access point policies*";
+  - **untick** "Block public and cross-account access to buckets and objects through *any public bucket or access point policies*";
+  - **keep ticked** both boxes about *access control lists (ACLs)*.
+
+  Save, and type `confirm`.
+- [ ] **Add the policy.** Same tab → *Bucket policy* → *Edit* → paste [`infra/s3-webgames-policy.json`](../infra/s3-webgames-policy.json) with `REPLACE_WITH_BUCKET_NAME` replaced by `schuster-media` → *Save*. It allows reading **only** `webgames/*`.
+- [ ] **Check:** `pnpm preflight` should show ✅ for both "webgames/ folder is publicly readable" and "the rest of the bucket stays private".
+
+The IAM policy doesn't change: the app's key can already write anywhere in the bucket.
+
 ## Troubleshooting
 
 | Symptom | Cause → fix |
@@ -229,6 +244,8 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
 | Magic link lands in spam | The Resend records under `mail.` aren't all verified yet. Wait for every record to show green in Resend. |
 | IONOS mail stopped arriving | The MX records on `@` were changed or deleted, or the nameservers were switched. Restore them from your step-0 screenshot; `pnpm preflight` shows the current MX. |
 | `500` on every page right after deploy | An env var is missing or misspelled. Vercel → *Logs* shows `Invalid environment: …` with the variable name. |
+| Web game shows "AccessDenied" | The bucket policy from step 9 is missing, or Block Public Access still blocks bucket policies. |
+| Console game says the BIOS is missing | PS1 needs a BIOS file; the admin adds it on any PlayStation game's page. |
 | Library loads but covers are broken | S3 credentials or region are wrong in Vercel. Covers are presigned GETs. |
 | A Vercel preview deploy can't sign in | Expected: passkeys and `AUTH_URL` are bound to schuster.me. Test on production. |
 
