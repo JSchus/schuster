@@ -53,8 +53,8 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 
 - **Passkeys** (WebAuthn) are the primary login. The **email magic link** (via Resend) is the fallback, and you can add a passkey after signing in with it (the key icon in the header).
 - **The first account ever created becomes admin.** This is a single atomic SQL `UPDATE … WHERE NOT EXISTS (admin)`, so two simultaneous sign-ups can't both win.
-- **New accounts are limited to `ALLOWED_EMAILS`** until Stage 5 adds invites. Existing users can always sign in.
-- Sessions are JWTs, so the edge middleware never touches the database.
+- **New accounts need an invite** (or an email the admin approved, or one listed in `ALLOWED_EMAILS`). Existing users can always sign in.
+- Sessions are JWTs, so the edge middleware never touches the database. The role is re-read from the database at most every 5 minutes (`auth.ts`), so a role change or a removed account takes effect without a sign-out.
 
 ---
 
@@ -77,25 +77,43 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **`components/games/emulator.tsx`** sets the `EJS_*` globals. Its `EJS_onSaveState`/`EJS_onLoadState`/`EJS_onGameStart` hooks sync save states and in-game saves to `saves/{userId}/{itemId}/` through `/api/games/[id]/saves`. The user id always comes from the session.
 - **Web games:** `lib/games/publish.ts` unzips in the browser and PUTs each file (with the right Content-Type, e.g. `application/wasm`) to `webgames/{id}/`. `infra/s3-webgames-policy.json` makes only that prefix publicly readable. Games play in a sandboxed iframe on S3's origin.
 
+### Sharing, roles and invites (Stage 5)
+
+- **Roles** (`lib/permissions.ts`): `admin` (everything), `member` (uploads, edits their own items, makes shelves and share links), `viewer` (reads, watches and plays only).
+- **Invites** (`/admin` → *Invite someone*): a link `/invite/{token}` with a role, an expiry and a number of uses. Accepting one approves the email in `approved_emails` (one conditional `UPDATE` takes a use, so the last use can't be taken twice); the person then creates a passkey or gets an email link. Admins can also approve an email directly.
+- **Visibility** per item and per shelf: *Everyone*, *Specific people* (`item_access` / `shelf_access`), or *Only me*. Every item query goes through `visibleTo(viewer)` in `lib/db/queries.ts`; admins see everything. A shelf only groups items: people see the items on it they're allowed to see.
+- **Edit and delete** (uploader or admin): title, author, description, tags, visibility and cover (generated, or a picture from the device). Deleting removes the file, every cover version, subtitles, published web-game files and everyone's cloud saves from S3, then the row (progress, shelves and links cascade).
+- **Share links** (`/s/{token}`): public, expire after 1, 7 or 30 days, optional password (scrypt; an httpOnly cookie remembers it for 12 h). Video, audio and images play inline from presigned S3 URLs that never outlive the link; everything else is a download. The owner sees view counts and can turn a link off.
+- **Admin page** (`/admin`): people with roles, upload counts and storage; invite links; approved emails; total storage; cleanup of uploads that never finished.
+- **Migrations** run automatically on Vercel **production** builds (`scripts/migrate.mjs`, before `next build`). Preview builds skip them, so an unmerged branch never changes the database.
+
 ## Project layout
 
 ```
 app/
-  (app)/                 signed-in pages: library, items/[id], upload
+  (app)/                 signed-in pages: library, items/[id], upload, shelves, admin
   login/                 passkey + magic-link sign-in
+  invite/[token]         accept an invite link (public)
+  s/[token]              public share page (password, inline player, download)
   api/uploads/…          upload control plane (init, parts, cover, complete, cancel)
   api/items/[id]/download  302 → presigned S3 URL
+  api/items/[id]         edit (PATCH) and delete (DELETE); …/shares for share links
+  api/shelves/…          shelves and their items
+  api/admin/…            roles, removals, invites, approvals, unfinished uploads
   manifest.ts, icons/, icon.tsx, apple-icon.tsx, offline/   PWA
 components/
   ui/                    shadcn/ui primitives
-  library/ upload/ auth/ feature components (small, one job each)
+  library/ upload/ auth/ items/ sharing/ shelves/ admin/   feature components (small, one job each)
 lib/
-  db/                    Drizzle schema, client, queries
+  db/                    Drizzle schema, client, queries (items, people, shares, shelves)
+  permissions.ts         roles and visibility rules
+  sharing/               link tokens, share passwords, request schemas (zod)
+  items/purge.ts         delete an item and all of its S3 objects
   storage/               StorageAdapter, S3 + memory implementations, key layout
   upload/                part planning, uploader, browser transport, API protocol (zod)
   extract/               in-browser EPUB / video / audio metadata extraction
-  auth/                  allowlist + first-admin logic
-drizzle/                 generated SQL migrations
+  auth/                  sign-up gate, first-admin and invited-role logic
+drizzle/                 generated SQL migrations (applied by scripts/migrate.mjs)
 infra/                   S3 CORS, IAM policy, lifecycle rule (paste into AWS)
 public/sw.js             service worker
 tests/                   Vitest suites
@@ -151,7 +169,7 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
 | `AUTH_TRUST_HOST` | non-Vercel | `true` | Trust the `Host` header. Vercel sets this automatically. |
 | `AUTH_RESEND_KEY` | prod | `re_…` | [Resend](https://resend.com) API key for magic-link emails. Empty in dev = links logged to the console. |
 | `EMAIL_FROM` | | `Schuster Media <login@mail.schuster.me>` | Sender address. Its domain (`mail.schuster.me`) must be verified in Resend. A subdomain keeps Resend apart from the IONOS mailboxes on `schuster.me`. |
-| `ALLOWED_EMAILS` | | `mom@x.com, sam@y.org` | Who may **create** an account. The first account is always allowed (and becomes admin). |
+| `ALLOWED_EMAILS` | | `mom@x.com, sam@y.org` | Optional since Stage 5 (use invites instead). Extra emails allowed to **create** an account, as members. The first account is always allowed (and becomes admin). |
 | `STORAGE_DRIVER` | | `s3` | `s3` (default) or `memory` (tests only). |
 | `S3_BUCKET` | ✅ | `schuster-media` | Bucket name. |
 | `S3_REGION` | ✅ | `us-east-1` | Bucket region. |
@@ -200,8 +218,8 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
 
    Use the A/CNAME method, **not** Vercel nameservers. Leave every MX, TXT and mail CNAME alone: the IONOS mailboxes on `schuster.me` depend on them.
 4. **Resend:** verify the subdomain `mail.schuster.me` (its DNS records all live under `mail.`), then set `AUTH_RESEND_KEY` and `EMAIL_FROM`.
-5. Run `pnpm db:migrate` against the Neon URL (once per schema change), then deploy.
-6. Visit `https://schuster.me/login` and **create the first passkey right away**: that account becomes admin. Afterwards, only `ALLOWED_EMAILS` can sign up.
+5. Deploy. Production builds apply pending migrations themselves (`scripts/migrate.mjs`); `pnpm db:migrate` does the same by hand.
+6. Visit `https://schuster.me/login` and **create the first passkey right away**: that account becomes admin. Afterwards, people join with invite links from `/admin`.
 
 **Hobby-plan notes:**
 - Every API route sets `maxDuration = 10` and does only DB and signing work.
@@ -232,3 +250,6 @@ The manifest, maskable icons, Apple touch icon and an offline fallback page are 
   - the real route handlers end to end (init → parts → cover → complete), using the memory adapter;
   - the 401, 404, ownership and size-mismatch cases.
 - `tests/extract/epub.test.ts`: EPUB 2 and 3 metadata and cover extraction.
+- `tests/sharing/rules.test.ts`: roles, the sign-up gate, the role re-check, link tokens, share passwords and unlock cookies.
+- `tests/sharing/routes.test.ts`: item edit/delete (every S3 object goes), share links, invites (uses, expiry, existing accounts), admin guards (last admin, self-removal), viewers refused.
+- `tests/db/sharing.int.test.ts`: the real visibility, shelf, role and invite SQL. Skipped unless `TEST_DATABASE_URL` points at a migrated Postgres, e.g. `TEST_DATABASE_URL=postgres://schuster:schuster@localhost:5432/schuster pnpm test tests/db`.

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
-  AccessDenied: "That email isn't on the family list yet. Ask the admin to add you.",
+  AccessDenied: "That email isn't on the family list yet. Ask the admin for an invite link.",
   Verification: "That sign-in link has expired or was already used.",
 };
 

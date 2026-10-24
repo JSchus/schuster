@@ -11,6 +11,7 @@ export {
   isCoverKeyFor,
   isSubtitleKeyFor,
   mediaKey,
+  safeFilename,
   saveKey,
   subtitleKey,
   webGameKey,

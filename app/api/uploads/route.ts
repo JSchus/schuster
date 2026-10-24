@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { HttpError, handle, parseJson, requireUser } from "@/lib/api";
+import { HttpError, handle, parseJson, requireContributor } from "@/lib/api";
 import { createPendingItem } from "@/lib/db/queries";
 import { getStorage, mediaKey } from "@/lib/storage";
 import { planParts } from "@/lib/upload/plan";
@@ -9,7 +9,7 @@ export const maxDuration = 10;
 
 /** Start an upload: create a pending item and an S3 multipart upload. */
 export const POST = handle(async (req: Request) => {
-  const user = await requireUser();
+  const user = await requireContributor();
   const body = await parseJson(req, initRequestSchema);
 
   let plan;

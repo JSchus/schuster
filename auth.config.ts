@@ -1,7 +1,16 @@
 import type { NextAuthConfig } from "next-auth";
 
 /** Paths reachable without a session. */
-const PUBLIC_PATHS = [/^\/login$/, /^\/offline$/, /^\/api\/auth\//];
+const PUBLIC_PATHS = [
+  /^\/login$/,
+  /^\/offline$/,
+  /^\/api\/auth\//,
+  // Invite links and public share links (each checks its own token).
+  /^\/invite\/[^/]+$/,
+  /^\/api\/invites\/[^/]+$/,
+  /^\/s\/[^/]+$/,
+  /^\/api\/s\/[^/]+\/download$/,
+];
 
 /**
  * Edge-safe subset of the Auth.js config, used by middleware. It only decodes
@@ -24,7 +33,7 @@ export const authConfig = {
     },
     session({ session, token }) {
       if (token.sub) session.user.id = token.sub;
-      session.user.role = token.role ?? "member";
+      session.user.role = token.role ?? "viewer";
       return session;
     },
   },

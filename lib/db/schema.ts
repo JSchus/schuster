@@ -15,6 +15,7 @@ import {
 import type { AdapterAccountType } from "next-auth/adapters";
 // Relative import: drizzle-kit loads this file without tsconfig path aliases.
 import { MEDIA_TYPES } from "../media-types";
+import { ROLES, VISIBILITIES } from "../permissions";
 
 export { MEDIA_TYPES, type MediaType } from "../media-types";
 
@@ -25,7 +26,8 @@ export { MEDIA_TYPES, type MediaType } from "../media-types";
 
 export const mediaType = pgEnum("media_type", MEDIA_TYPES);
 export const mediaStatus = pgEnum("media_status", ["pending", "ready"]);
-export const userRole = pgEnum("user_role", ["admin", "member"]);
+export const userRole = pgEnum("user_role", ROLES);
+export const visibility = pgEnum("visibility", VISIBILITIES);
 
 /* ------------------------------------------------------------------ */
 /* Auth.js tables (shape required by @auth/drizzle-adapter)             */
@@ -140,6 +142,8 @@ export const mediaItems = pgTable(
       .default(sql`'{}'::text[]`),
     metadata: jsonb("metadata").$type<MediaMetadata>().notNull().default({}),
     addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
+    /** Who can see it (Stage 5); "people" means the uploader plus item_access rows. */
+    visibility: visibility("visibility").notNull().default("everyone"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -191,6 +195,127 @@ export const favorites = pgTable(
   ],
 );
 
+/* ------------------------------------------------------------------ */
+/* Sharing (Stage 5)                                                    */
+/* ------------------------------------------------------------------ */
+
+/** People an item with visibility "people" is shared with. */
+export const itemAccess = pgTable(
+  "item_access",
+  {
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => mediaItems.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.itemId, t.userId] }), index("item_access_user_idx").on(t.userId)],
+);
+
+/** Invite links an admin hands out; each use approves one email. */
+export const invites = pgTable("invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** The secret in the link (/invite/{token}). */
+  token: text("token").notNull().unique(),
+  role: userRole("role").notNull().default("member"),
+  note: text("note"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  maxUses: integer("max_uses").notNull().default(1),
+  uses: integer("uses").notNull().default(0),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Emails allowed to create an account, with the role they get. Filled by
+ * invite links or by an admin directly; the row stays as a record after
+ * sign-up. Replaces the ALLOWED_EMAILS env var (still honoured as a fallback).
+ */
+export const approvedEmails = pgTable("approved_emails", {
+  /** Lower-cased. */
+  email: text("email").primaryKey(),
+  role: userRole("role").notNull().default("member"),
+  inviteId: uuid("invite_id").references(() => invites.id, { onDelete: "set null" }),
+  addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Public, time-limited links to one item for people without an account. */
+export const shares = pgTable(
+  "shares",
+  {
+    /** The secret in the link (/s/{token}). */
+    token: text("token").primaryKey(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => mediaItems.id, { onDelete: "cascade" }),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** scrypt hash (lib/sharing/password.ts), or null for no password. */
+    passwordHash: text("password_hash"),
+    allowDownload: boolean("allow_download").notNull().default(true),
+    views: integer("views").notNull().default(0),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("shares_item_idx").on(t.itemId)],
+);
+
+/** Named collections of items. */
+export const shelves = pgTable(
+  "shelves",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    description: text("description"),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    visibility: visibility("visibility").notNull().default("everyone"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("shelves_owner_idx").on(t.ownerId)],
+);
+
+export const shelfItems = pgTable(
+  "shelf_items",
+  {
+    shelfId: uuid("shelf_id")
+      .notNull()
+      .references(() => shelves.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => mediaItems.id, { onDelete: "cascade" }),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.shelfId, t.itemId] }), index("shelf_items_item_idx").on(t.itemId)],
+);
+
+/** People a shelf with visibility "people" is shared with. */
+export const shelfAccess = pgTable(
+  "shelf_access",
+  {
+    shelfId: uuid("shelf_id")
+      .notNull()
+      .references(() => shelves.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.shelfId, t.userId] }), index("shelf_access_user_idx").on(t.userId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
+export type Invite = typeof invites.$inferSelect;
+export type Share = typeof shares.$inferSelect;
+export type Shelf = typeof shelves.$inferSelect;

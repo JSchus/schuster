@@ -40,6 +40,12 @@ export interface StorageAdapter {
   publicUrl(key: string): string;
 
   delete(key: string): Promise<void>;
+
+  /** Delete several keys (missing ones are ignored). */
+  deleteMany(keys: string[]): Promise<void>;
+
+  /** Delete every object whose key starts with `prefix`. Returns how many. */
+  deletePrefix(prefix: string): Promise<number>;
 }
 
 export type PresignedPart = { partNumber: number; url: string };

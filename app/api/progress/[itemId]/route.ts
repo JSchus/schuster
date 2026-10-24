@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { HttpError, handle, parseId, requireUser } from "@/lib/api";
+import type { Viewer } from "@/lib/permissions";
 import { getProgress, getReadyItem, upsertProgress, type ProgressRow } from "@/lib/db/queries";
 import { isReadable } from "@/lib/reader/progress";
 
@@ -22,8 +23,8 @@ function toJson(row: ProgressRow | undefined): ProgressResponse {
 }
 
 /** Items that have a position: readable books, and anything played in the video/audio player. */
-async function readableItem(itemId: string) {
-  const item = await getReadyItem(parseId(itemId));
+async function readableItem(itemId: string, user: Viewer) {
+  const item = await getReadyItem(parseId(itemId), user);
   const ok = item && (item.type === "video" || item.type === "audio" || (item.type === "book" && isReadable(item.mime)));
   if (!ok) throw new HttpError(404, "Not found");
   return item;
@@ -32,7 +33,7 @@ async function readableItem(itemId: string) {
 /** This user's synced position (or null). */
 export const GET = handle(async (_req: Request, { params }: Ctx) => {
   const user = await requireUser();
-  const item = await readableItem((await params).itemId);
+  const item = await readableItem((await params).itemId, user);
   return Response.json(toJson(await getProgress(user.id, item.id)));
 });
 
@@ -43,7 +44,7 @@ export const GET = handle(async (_req: Request, { params }: Ctx) => {
  */
 const save = handle(async (req: Request, { params }: Ctx) => {
   const user = await requireUser();
-  const item = await readableItem((await params).itemId);
+  const item = await readableItem((await params).itemId, user);
 
   const raw = await req.text();
   let json: unknown;

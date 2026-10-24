@@ -3,8 +3,10 @@ import {
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   NotFound,
   PutObjectCommand,
   S3Client,
@@ -143,6 +145,38 @@ export class S3StorageAdapter implements StorageAdapter {
 
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async deleteMany(keys: string[]) {
+    // DeleteObjects takes at most 1000 keys per request.
+    for (let i = 0; i < keys.length; i += 1000) {
+      const batch = keys.slice(i, i + 1000);
+      const res = await this.client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.bucket,
+          Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+        }),
+      );
+      if (res.Errors?.length) {
+        throw new Error(`S3 couldn't delete ${res.Errors.length} object(s): ${res.Errors[0]?.Code ?? "unknown"}`);
+      }
+    }
+  }
+
+  async deletePrefix(prefix: string) {
+    if (!prefix) throw new Error("Refusing to delete the whole bucket");
+    let deleted = 0;
+    let token: string | undefined;
+    do {
+      const page = await this.client.send(
+        new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix, ContinuationToken: token }),
+      );
+      const keys = (page.Contents ?? []).map((o) => o.Key).filter((k): k is string => !!k);
+      if (keys.length) await this.deleteMany(keys);
+      deleted += keys.length;
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+    return deleted;
   }
 
   publicUrl(key: string): string {

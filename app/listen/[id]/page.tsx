@@ -3,13 +3,12 @@ import type { Metadata } from "next";
 import { Link } from "next-view-transitions";
 import { PlayerLoader } from "@/components/player/player-loader";
 import { Button } from "@/components/ui/button";
-import { loadPlayerPage, playableItem } from "@/lib/player/page-data";
+import { loadPlayerPage, playerTitle } from "@/lib/player/page-data";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const item = await playableItem((await params).id, "audio");
-  return { title: item?.title ?? "Not found" };
+  return { title: await playerTitle((await params).id, "audio") };
 }
 
 /** Audio player with large artwork; lock-screen controls come from the Media Session API. */

@@ -75,6 +75,17 @@ export class MemoryStorageAdapter implements StorageAdapter {
     this.objects.delete(key);
   }
 
+  async deleteMany(keys: string[]) {
+    for (const k of keys) this.objects.delete(k);
+  }
+
+  async deletePrefix(prefix: string) {
+    if (!prefix) throw new Error("Refusing to delete the whole bucket");
+    const keys = [...this.objects.keys()].filter((k) => k.startsWith(prefix));
+    for (const k of keys) this.objects.delete(k);
+    return keys.length;
+  }
+
   publicUrl(key: string) {
     return `memory://public/${key}`;
   }

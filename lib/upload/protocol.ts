@@ -24,7 +24,7 @@ export const metadataSchema = z
   })
   .strict();
 
-const tagsSchema = z
+export const tagsSchema = z
   .array(z.string().trim().toLowerCase().min(1).max(40))
   .max(30)
   .transform((t) => [...new Set(t)]);

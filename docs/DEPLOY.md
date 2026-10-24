@@ -125,12 +125,12 @@ EMAIL_FROM="Schuster Media <login@mail.schuster.me>"
 ## 4. Auth settings
 
 - [ ] Generate the session secret: `npx auth secret`. It prints `AUTH_SECRET="…"`; copy the value.
-- [ ] Decide who can create accounts. You can always add more later in Vercel and redeploy.
+- [ ] Optional: list emails allowed to create accounts. Since Stage 5 you can leave this empty and send invite links from the admin page instead.
 
 ```dotenv
 AUTH_SECRET=…
 AUTH_URL=https://schuster.me
-ALLOWED_EMAILS=you@schuster.me, mom@example.com, dad@example.com
+ALLOWED_EMAILS=
 ```
 
 > Your own `@schuster.me` addresses work fine here: sign-in links arrive in your IONOS inbox as usual.
@@ -212,7 +212,7 @@ Fix any ❌ using the hint printed beneath it, then re-run until you see **✅ A
   - **iPhone/iPad:** Safari → Share → *Add to Home Screen*.
   - **Android:** Chrome → ⋮ → *Install app*.
 - [ ] Sign out, sign back in with the passkey, and try *Email me a sign-in link* once to confirm email delivery.
-- [ ] Tell family to visit schuster.me and choose *Create a passkey* with the email you listed.
+- [ ] Invite family: open the shield icon (**Admin**) → *Invite someone* → *Make link & copy*, then text or email them the link. See step 10.
 
 ---
 
@@ -231,6 +231,16 @@ HTML5 games run from a **public `webgames/` folder** in the bucket, on S3's own 
 
 The IAM policy doesn't change: the app's key can already write anywhere in the bucket.
 
+## 10. Invites, roles and sharing (Stage 5)
+
+Nothing to set up in AWS, Neon or Vercel: the first production deploy of Stage 5 adds the new tables itself (the build log shows `[migrate] database is up to date`).
+
+- [ ] **Invite someone:** shield icon → *Invite someone*. Pick *Member* (can upload) or *Viewer* (can only read, watch and play), how long the link works and how many people may use it, then *Make link & copy* and send it. They enter their email and create a passkey.
+- [ ] **Limit who sees something:** open an item → *Edit* → *Who can see this item?* → *Everyone*, *Specific people* or *Only me*. New uploads start as *Everyone*.
+- [ ] **Shelves:** *Shelves* in the header, or *Shelves* on any item, to group things (“Holiday movies”). A shelf can be shared the same three ways.
+- [ ] **Share with someone who has no account:** item → *Share link* → choose 1, 7 or 30 days and optionally a password → the link is copied. *Turn off* stops it at once.
+- [ ] **Change a role or remove someone:** Admin → *People*. It takes effect within 5 minutes; their uploads stay.
+
 ## Troubleshooting
 
 | Symptom | Cause → fix |
@@ -239,7 +249,9 @@ The IAM policy doesn't change: the app's key can already write anywhere in the b
 | Upload fails with 403 | IAM policy has the wrong bucket name, or the access key in Vercel is wrong. Run `pnpm preflight`. |
 | Upload fails: CORS error in browser console | The site's origin isn't in *AllowedOrigins*. Add it, e.g. a `*.vercel.app` preview URL. |
 | Passkey error mentioning "RP ID" or "origin" | `AUTH_URL` doesn't match the address in the browser. It must be `https://schuster.me`; open the site at that address, not `www` or the vercel.app URL. |
-| "That email isn't on the family list yet" | Add the address to `ALLOWED_EMAILS` in Vercel → *Deployments* → ⋯ → *Redeploy*. |
+| "That email isn't on the family list yet" | Send them an invite link (Admin → *Invite someone*), or add their email under *Allow an email directly*. |
+| Invite link says "not valid" | It expired, was used up or turned off. Make a new one. |
+| Deploy fails at `[migrate] failed` | The build couldn't reach Neon, or `DATABASE_URL` is wrong for *Production* in Vercel. The previous version keeps running; fix the variable and redeploy. |
 | Magic-link email never arrives | Resend domain `mail.schuster.me` not *Verified* yet, or `EMAIL_FROM` isn't `…@mail.schuster.me`. Check Resend → *Logs*. |
 | Magic link lands in spam | The Resend records under `mail.` aren't all verified yet. Wait for every record to show green in Resend. |
 | IONOS mail stopped arriving | The MX records on `@` were changed or deleted, or the nameservers were switched. Restore them from your step-0 screenshot; `pnpm preflight` shows the current MX. |

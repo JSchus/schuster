@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { canContribute } from "@/lib/permissions";
 
 /** Thrown inside route handlers to short-circuit with an HTTP error. */
 export class HttpError extends Error {
@@ -17,6 +18,20 @@ export async function requireUser() {
   const session = await auth();
   if (!session?.user?.id) throw new HttpError(401, "Unauthorized");
   return session.user;
+}
+
+/** A signed-in admin or member (viewers can't upload, share or make shelves), or a 403. */
+export async function requireContributor() {
+  const user = await requireUser();
+  if (!canContribute(user)) throw new HttpError(403, "Viewers can't do that. Ask the admin to make you a member.");
+  return user;
+}
+
+/** A signed-in admin, or a 403. */
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "admin") throw new HttpError(403, "Admins only");
+  return user;
 }
 
 export async function parseJson<S extends z.ZodType>(req: Request, schema: S): Promise<z.output<S>> {
