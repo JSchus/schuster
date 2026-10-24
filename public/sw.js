@@ -13,7 +13,7 @@
  */
 importScripts("/sw-range.js");
 
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `static-${VERSION}`;
 const PAGES_CACHE = `pages-${VERSION}`;
 const PRECACHE = ["/offline", "/icons/192.png", "/icons/512.png", "/manifest.webmanifest", "/pdf.worker.min.mjs"];
@@ -74,10 +74,23 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+/** The song being played, so seeking doesn't re-read it from the cache each time. */
+let lastAudio = null;
+
 async function offlineAudio(req, url) {
   const cached = await (await caches.open("audio")).match(url.pathname);
-  if (!cached) return new Response("Not kept offline", { status: 404 });
-  return self.SwRange.rangeResponse(cached, req.headers.get("Range"));
+  if (!cached) {
+    lastAudio = null;
+    return new Response("Not kept offline", { status: 404 });
+  }
+  if (lastAudio?.path !== url.pathname) {
+    lastAudio = {
+      path: url.pathname,
+      type: cached.headers.get("Content-Type") || "application/octet-stream",
+      blob: await cached.blob(),
+    };
+  }
+  return self.SwRange.rangeFromBlob(lastAudio.blob, lastAudio.type, req.headers.get("Range"));
 }
 
 async function cacheFirst(req) {
