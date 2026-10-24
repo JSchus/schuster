@@ -5,18 +5,26 @@
  * - /_next/static/*: cache-first (content-hashed, immutable).
  * - Never touches /api/*, auth, or cross-origin requests (S3 presigned URLs,
  *   which carry expiring signatures and can be gigabytes).
+ * - The "books" cache (written by the page for "Keep offline") holds book
+ *   files and their /read/{id} pages; it is never cleared on upgrade.
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC_CACHE = `static-${VERSION}`;
 const PAGES_CACHE = `pages-${VERSION}`;
-const PRECACHE = ["/offline", "/icons/192.png", "/icons/512.png", "/manifest.webmanifest"];
+const PRECACHE = ["/offline", "/icons/192.png", "/icons/512.png", "/manifest.webmanifest", "/pdf.worker.min.mjs"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((c) => c.addAll(PRECACHE))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(STATIC_CACHE);
+      await cache.addAll(PRECACHE);
+      // Also precache the scripts the offline page needs, so its list of
+      // offline books works even if those chunks were never loaded before.
+      const html = await (await cache.match("/offline"))?.text();
+      const assets = [...new Set(html?.match(/\/_next\/static\/[^"'\s)]+/g) ?? [])];
+      await Promise.all(assets.map((a) => cache.add(a).catch(() => {})));
+      await self.skipWaiting();
+    })(),
   );
 });
 
@@ -26,7 +34,9 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((k) => !k.endsWith(`-${VERSION}`)).map((k) => caches.delete(k)),
+          keys
+            .filter((k) => /^(static|pages)-/.test(k) && !k.endsWith(`-${VERSION}`))
+            .map((k) => caches.delete(k)),
         ),
       )
       .then(() => self.clients.claim()),
@@ -40,7 +50,11 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/pdf.worker.min.mjs"
+  ) {
     event.respondWith(cacheFirst(req));
     return;
   }

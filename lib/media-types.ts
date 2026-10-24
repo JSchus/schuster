@@ -16,5 +16,6 @@ export function isMediaType(v: unknown): v is MediaType {
 
 /** Items whose cover can be generated from the file itself (video frame, EPUB art, the photo). */
 export function canMakeCover(type: MediaType, mime: string): boolean {
-  return type === "book" || type === "video" || mime.startsWith("image/");
+  if (type === "book") return mime === "application/epub+zip" || mime === "application/pdf";
+  return type === "video" || mime.startsWith("image/");
 }

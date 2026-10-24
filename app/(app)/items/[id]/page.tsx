@@ -1,4 +1,4 @@
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, BookOpen, Download } from "lucide-react";
 import type { Metadata } from "next";
 import { Link } from "next-view-transitions";
 import { notFound } from "next/navigation";
@@ -10,7 +10,8 @@ import { MediaTypeIcon } from "@/components/library/media-type-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { withCoverUrls } from "@/lib/covers";
-import { getItemWithUploader } from "@/lib/db/queries";
+import { getItemWithUploader, getProgress } from "@/lib/db/queries";
+import { isReadable } from "@/lib/reader/progress";
 import { canMakeCover, MEDIA_TYPE_LABELS } from "@/lib/media-types";
 import { formatBytes, formatDuration } from "@/lib/utils";
 
@@ -37,6 +38,8 @@ export default async function ItemPage({ params }: Props) {
   const m = item.metadata;
   const user = session?.user;
   const canEdit = !!user && (user.role === "admin" || user.id === item.addedBy);
+  const readable = item.type === "book" && isReadable(item.mime);
+  const progress = readable && user ? await getProgress(user.id, item.id) : undefined;
 
   const facts: [string, string | undefined][] = [
     ["Author", m.author],
@@ -77,7 +80,14 @@ export default async function ItemPage({ params }: Props) {
 
           <div className="flex flex-wrap gap-2">
             {/* Route handler 302s to a presigned S3 URL; bytes never touch Vercel. */}
-            <Button asChild size="lg">
+            {readable ? (
+              <Button asChild size="lg">
+                <Link href={`/read/${item.id}`}>
+                  <BookOpen /> {progress && progress.percent > 0 ? `Continue · ${progress.percent}%` : "Read"}
+                </Link>
+              </Button>
+            ) : null}
+            <Button asChild size="lg" variant={readable ? "outline" : "default"}>
               <a href={`/api/items/${item.id}/download`} download>
                 <Download /> Download
               </a>

@@ -12,17 +12,17 @@ Every stage keeps the Stage 1 rule: **media bytes never pass through Next.js.** 
 - PWA (manifest, icons, service worker), dark mode, View Transitions.
 - `StorageAdapter` interface with an S3 implementation.
 
-## Stage 2: EPUB reader with cross-device progress
+## Stage 2: Book reader with cross-device progress ✅
 
-- `/items/[id]/read` uses an in-browser reader (epub.js or foliate-js). It loads the book from a presigned GET; CORS `GET` + `Range` are already allowed.
-- Progress is saved as an EPUB CFI in `user_progress.position`, plus `percent`:
-  - debounced `PUT /api/progress/:itemId`;
-  - flushed on `visibilitychange` / `pagehide` with `navigator.sendBeacon`.
-- Opening a book on another device resumes at the latest `updated_at`. Conflicts: last write wins, with a "Jump to page N from your phone?" prompt when the difference is large.
-- Reader settings stored per user in localStorage: font size, theme (light/sepia/dark), margins, paginated vs scrolled.
-- A "Continue reading" shelf on the library page from `user_progress`.
-- Offline: cache the last N opened books in the Cache API (opt-in per book). The service worker serves them when offline.
-- PDF: render with pdf.js under the same progress model (page number as the position).
+- `/read/[id]`: full-screen reader for **EPUB** (epub.js) and **PDF** (pdf.js legacy build, streamed with Range requests). The book comes from a presigned S3 GET, never through Vercel.
+- Progress (EPUB CFI or `page:N`, plus percent) is saved to `localStorage` immediately and to `PUT /api/progress/:itemId` (debounced, with a `sendBeacon` on close). The server keeps only the newest write, so a device syncing late can't roll back progress made elsewhere.
+- Opening a book picks the newer of this device's and the synced position. If another device was ahead, a toast offers "Go back"; returning to a tab after a while offers "Jump there".
+- Per-device settings: text size/zoom, light/sepia/dark, serif/sans, pages or scroll. Contents panel and "go to page".
+- "Continue reading" shelf with progress bars; Read / Continue button on the item page.
+- **Keep offline** per book: the file and its reader page go into a `books` Cache API store (kept across service-worker upgrades). Offline progress is queued and synced from any page once back online.
+- PDFs get their first page as a cover.
+
+Follow-ups: highlights and bookmarks, reading statistics, offline covers, searching inside a book.
 
 ## Stage 3: Video player with resume, subtitles and range requests
 

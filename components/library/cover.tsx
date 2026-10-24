@@ -10,10 +10,12 @@ type Props = {
   transitionName?: string;
   className?: string;
   eager?: boolean;
+  /** Overlays drawn on top of the art (e.g. a progress bar). */
+  children?: React.ReactNode;
 };
 
 /** Cover art (presigned S3 URL) or a typed placeholder. Books are 2:3, others 16:9. */
-export function Cover({ url, title, type, transitionName, className, eager }: Props) {
+export function Cover({ url, title, type, transitionName, className, eager, children }: Props) {
   const aspect = type === "book" || type === "game" ? "aspect-[2/3]" : "aspect-video";
   return (
     <div
@@ -36,6 +38,7 @@ export function Cover({ url, title, type, transitionName, className, eager }: Pr
           </div>
         </div>
       )}
+      {children}
     </div>
   );
 }
