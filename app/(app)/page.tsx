@@ -1,7 +1,7 @@
 import { SearchX } from "lucide-react";
 import { Link } from "next-view-transitions";
 import { MediaGrid } from "@/components/library/media-grid";
-import { ContinueReading } from "@/components/library/continue-reading";
+import { ContinueShelf } from "@/components/library/continue-shelf";
 import { RecentlyAdded } from "@/components/library/recently-added";
 import { SearchBox } from "@/components/library/search-box";
 import { TagFilter } from "@/components/library/tag-filter";
@@ -46,7 +46,7 @@ export default async function LibraryPage({ searchParams }: Props) {
       <TypeFilter params={params} />
       <TagFilter tags={tags} params={params} />
 
-      <ContinueReading books={reading} />
+      <ContinueShelf items={reading} />
       {!filtered && items.length > recent.length ? <RecentlyAdded items={recent} /> : null}
 
       {items.length ? (

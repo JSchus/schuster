@@ -64,6 +64,13 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **Progress sync** (`components/reader/use-progress-sync.ts`, `app/api/progress/[itemId]`): every page turn is written to `localStorage`, then a debounced `PUT` (and `sendBeacon` on close). The upsert only overwrites when the incoming timestamp is newer, so late offline syncs never roll back another device. `lib/reader/progress.ts#pickResume` chooses where to open.
 - **Offline books** (`lib/reader/offline.ts`): "Keep offline" stores the file and its reader page in the `books` Cache API store; the service worker never clears it. `ProgressFlusher` sends queued positions from any page once back online.
 
+### Player (Stage 3)
+
+- `/watch/[id]` and `/listen/[id]` use the native `<video>`/`<audio>` element (`components/player/media-player.tsx`). It streams the presigned S3 URL, and Range requests make seeking work with no server involvement.
+- Positions (`t:<seconds>`) reuse the reader's progress sync and API. `lib/player/position.ts#resumeTime` restarts instead of resuming in the last ~5%.
+- Subtitles: `components/player/subtitle-manager.tsx` converts SRT→VTT in the browser (`lib/player/subtitles.ts`) and uploads via `/api/items/[id]/subtitles`. Tracks are listed in `metadata.subtitles`, and the media element uses `crossOrigin="anonymous"` so cross-origin tracks load.
+- Expired URLs: one automatic refresh through `/api/items/[id]/stream`, which remounts the element and seeks back.
+
 ## Project layout
 
 ```

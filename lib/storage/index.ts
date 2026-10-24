@@ -5,7 +5,7 @@ import { S3StorageAdapter } from "./s3";
 import type { StorageAdapter } from "./types";
 
 export type { StorageAdapter } from "./types";
-export { coverKey, isCoverKeyFor, mediaKey } from "./keys";
+export { coverKey, isCoverKeyFor, isSubtitleKeyFor, mediaKey, subtitleKey } from "./keys";
 
 let instance: StorageAdapter | undefined;
 

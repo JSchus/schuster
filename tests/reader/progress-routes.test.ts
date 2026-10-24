@@ -49,8 +49,15 @@ describe("progress API", () => {
     expect((await GET(req("GET"), ctx(BOOK))).status).toBe(401);
   });
 
-  it("404s for missing, pending, non-book and malformed ids", async () => {
-    for (const id of [VIDEO, PENDING, "55555555-5555-4555-8555-555555555555", "nope"]) {
+  it("accepts video and audio positions too", async () => {
+    const res = await PUT(req("PUT", { position: "t:42.5", percent: 12, at: Date.now() }), ctx(VIDEO));
+    expect(res.status).toBe(200);
+    expect((await res.json()).position).toBe("t:42.5");
+  });
+
+  it("404s for missing, pending, other files and malformed ids", async () => {
+    items.set(VIDEO.replace("3333", "6666"), { status: "ready", type: "file", mime: "text/plain" } as MediaItem);
+    for (const id of [VIDEO.replace("3333", "6666"), PENDING, "55555555-5555-4555-8555-555555555555", "nope"]) {
       expect((await GET(req("GET"), ctx(id))).status).toBe(404);
     }
   });

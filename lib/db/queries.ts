@@ -55,6 +55,14 @@ export async function setItemCover(id: string, coverKey: string) {
   await db().update(mediaItems).set({ coverKey }).where(eq(mediaItems.id, id));
 }
 
+/** Replace a video's subtitle list (kept in the metadata jsonb, no extra table). */
+export async function setSubtitles(id: string, subtitles: { lang: string; label: string; key: string }[]) {
+  await db()
+    .update(mediaItems)
+    .set({ metadata: sql`${mediaItems.metadata} || jsonb_build_object('subtitles', ${JSON.stringify(subtitles)}::jsonb)` })
+    .where(eq(mediaItems.id, id));
+}
+
 export async function deleteItem(id: string) {
   await db().delete(mediaItems).where(eq(mediaItems.id, id));
 }
@@ -168,7 +176,7 @@ export async function upsertProgress(
   return (await getProgress(userId, itemId))!;
 }
 
-/** Books this user has started but not finished, most recently read first. */
+/** Books, videos and audio this user has started but not finished, most recent first. */
 export async function continueReading(userId: string, limit = 12) {
   return db()
     .select({ item: mediaItems, percent: userProgress.percent })
