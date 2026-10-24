@@ -28,6 +28,15 @@ export function coverKey(itemId: string, version?: number): string {
   return version ? `covers/${itemId}-${version}.jpg` : `covers/${itemId}.jpg`;
 }
 
+/** Versioned WebVTT key for one subtitle language. */
+export function subtitleKey(itemId: string, lang: string, version: number): string {
+  return `subs/${itemId}/${lang}-${version}.vtt`;
+}
+
+export function isSubtitleKeyFor(itemId: string, key: string): boolean {
+  return new RegExp(`^subs/${itemId}/[a-z]{2,3}(-[a-z0-9]{2,8})?-\\d{10,16}\\.vtt$`).test(key);
+}
+
 /** True if `key` is a versioned cover key for `itemId` (never trust client-sent keys). */
 export function isCoverKeyFor(itemId: string, key: string): boolean {
   return new RegExp(`^covers/${itemId}-\\d{10,16}\\.jpg$`).test(key);

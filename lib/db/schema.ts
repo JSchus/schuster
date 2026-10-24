@@ -112,6 +112,8 @@ export type MediaMetadata = {
   width?: number;
   height?: number;
   originalFilename?: string;
+  /** WebVTT tracks for videos (Stage 3). */
+  subtitles?: { lang: string; label: string; key: string }[];
 };
 
 export const mediaItems = pgTable(

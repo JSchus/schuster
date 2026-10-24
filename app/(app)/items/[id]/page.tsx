@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Download } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, Headphones, Play } from "lucide-react";
 import type { Metadata } from "next";
 import { Link } from "next-view-transitions";
 import { notFound } from "next/navigation";
@@ -6,11 +6,13 @@ import { auth } from "@/auth";
 import { Cover } from "@/components/library/cover";
 import { libraryHref } from "@/components/library/filter-link";
 import { MakeCoverButton } from "@/components/library/make-cover-button";
+import { SubtitleManager } from "@/components/player/subtitle-manager";
 import { MediaTypeIcon } from "@/components/library/media-type-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { withCoverUrls } from "@/lib/covers";
 import { getItemWithUploader, getProgress } from "@/lib/db/queries";
+import { decodeTime, resumeTime } from "@/lib/player/position";
 import { isReadable } from "@/lib/reader/progress";
 import { canMakeCover, MEDIA_TYPE_LABELS } from "@/lib/media-types";
 import { formatBytes, formatDuration } from "@/lib/utils";
@@ -39,7 +41,11 @@ export default async function ItemPage({ params }: Props) {
   const user = session?.user;
   const canEdit = !!user && (user.role === "admin" || user.id === item.addedBy);
   const readable = item.type === "book" && isReadable(item.mime);
-  const progress = readable && user ? await getProgress(user.id, item.id) : undefined;
+  const playable = item.type === "video" || item.type === "audio";
+  const progress = (readable || playable) && user ? await getProgress(user.id, item.id) : undefined;
+  // Mirrors the player: no "Resume" if you stopped in the credits.
+  const resumeAt = playable ? resumeTime(decodeTime(progress?.position), m.durationSec ?? Number.NaN) : 0;
+  const primaryAction = readable || playable;
 
   const facts: [string, string | undefined][] = [
     ["Author", m.author],
@@ -87,7 +93,15 @@ export default async function ItemPage({ params }: Props) {
                 </Link>
               </Button>
             ) : null}
-            <Button asChild size="lg" variant={readable ? "outline" : "default"}>
+            {playable ? (
+              <Button asChild size="lg">
+                <Link href={`/${item.type === "video" ? "watch" : "listen"}/${item.id}`}>
+                  {item.type === "video" ? <Play /> : <Headphones />}
+                  {resumeAt > 0 ? `Resume · ${formatDuration(resumeAt)}` : item.type === "video" ? "Play" : "Listen"}
+                </Link>
+              </Button>
+            ) : null}
+            <Button asChild size="lg" variant={primaryAction ? "outline" : "default"}>
               <a href={`/api/items/${item.id}/download`} download>
                 <Download /> Download
               </a>
@@ -102,6 +116,8 @@ export default async function ItemPage({ params }: Props) {
               {item.description}
             </p>
           ) : null}
+
+          {canEdit && item.type === "video" ? <SubtitleManager itemId={item.id} tracks={m.subtitles ?? []} /> : null}
 
           {item.tags.length ? (
             <div className="flex flex-wrap gap-1.5">

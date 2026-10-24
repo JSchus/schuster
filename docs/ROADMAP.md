@@ -24,16 +24,18 @@ Every stage keeps the Stage 1 rule: **media bytes never pass through Next.js.** 
 
 Follow-ups: highlights and bookmarks, reading statistics, offline covers, searching inside a book.
 
-## Stage 3: Video player with resume, subtitles and range requests
+## Stage 3: Video and audio player with resume, subtitles and range requests ✅
 
-- `/items/[id]/watch` uses a native `<video>` element (plus hls.js later if transcoding is added). The source is a presigned GET.
-  - S3 serves HTTP `Range` requests natively, so seeking works without any proxy.
-  - Use longer expiries (≈6 h) for playback URLs, refreshed by the player before they expire.
-- Resume: position in seconds is stored in `user_progress` every ~10 s and on pause. "Continue watching" shelf.
-- Subtitles: upload `.srt` / `.vtt` next to a video. Convert SRT → VTT in the browser and store it at `subs/{itemId}/{lang}.vtt`, served as presigned `<track>` sources. Requires a `media_subtitles` table.
-- Audio player: same resume model, media session API (lock-screen controls), chapters for `.m4b`.
-- Optional: **CloudFront** in front of the bucket with signed cookies, giving cheaper egress and better seek latency. The `StorageAdapter.presignGet` can return CloudFront URLs.
-- Optional: an AWS MediaConvert job (triggered by S3 events, not by Vercel) for HEVC/MKV sources browsers can't play.
+- `/watch/[id]` (video) and `/listen/[id]` (audio) on the native media element: iOS fullscreen, AirPlay and picture-in-picture still work. Files stream straight from S3; seeking uses S3's native Range support.
+- Resume where you stopped on any device, via the same `user_progress` sync as the reader (`t:<seconds>` positions). Near the end it starts over instead. Finishing marks it 100%, which drops it off the shelf.
+- Skip buttons (−10/+30 s video, −15/+30 s audio), speed 0.75–2×, and keyboard shortcuts (space, ←/→, F, C).
+- Subtitles: uploaders or admins add `.srt`/`.vtt` per language on the video page. SRT is converted to WebVTT in the browser and stored as `subs/{id}/{lang}-{ts}.vtt`; the list lives in `media_items.metadata.subtitles` (no new table).
+- Audio: large artwork plus Media Session metadata and handlers for lock-screen and headphone controls.
+- Presigned URLs last 6 h. If one expires mid-session, the player fetches fresh ones from `/api/items/[id]/stream` and continues where it was.
+- Unplayable formats (e.g. MKV/HEVC in some browsers) show a "download instead" message.
+- The library shelf "Pick up where you left off" covers books, video and audio, with "42 min left".
+
+Follow-ups: CloudFront signed cookies (cheaper egress), a MediaConvert job for formats browsers can't play, `.m4b` chapters, automatic subtitle matching at upload (`movie.en.srt` next to `movie.mp4`), and offline video.
 
 ## Stage 4: Retro games (EmulatorJS) and a web-games shelf
 

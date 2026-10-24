@@ -21,13 +21,15 @@ function toJson(row: ProgressRow | undefined): ProgressResponse {
   return row ? { position: row.position, percent: row.percent, updatedAt: row.updatedAt.getTime() } : null;
 }
 
+/** Items that have a position: readable books, and anything played in the video/audio player. */
 async function readableItem(itemId: string) {
   const item = await getReadyItem(parseId(itemId));
-  if (!item || item.type !== "book" || !isReadable(item.mime)) throw new HttpError(404, "Not found");
+  const ok = item && (item.type === "video" || item.type === "audio" || (item.type === "book" && isReadable(item.mime)));
+  if (!ok) throw new HttpError(404, "Not found");
   return item;
 }
 
-/** This user's synced position in a book (or null). */
+/** This user's synced position (or null). */
 export const GET = handle(async (_req: Request, { params }: Ctx) => {
   const user = await requireUser();
   const item = await readableItem((await params).itemId);

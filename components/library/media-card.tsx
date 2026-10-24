@@ -8,12 +8,15 @@ export function MediaCard({
   morph = true,
   progress,
   href,
+  caption,
 }: {
   item: ItemWithCover;
   morph?: boolean;
   /** 0–100: draws a reading-progress bar over the cover. */
   progress?: number;
   href?: string;
+  /** Replaces the author line (e.g. "42 min left"). */
+  caption?: string;
 }) {
   return (
     <Link href={href ?? `/items/${item.id}`} className="group grid gap-2 rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
@@ -32,8 +35,8 @@ export function MediaCard({
       </Cover>
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{item.title}</p>
-        {item.metadata.author ? (
-          <p className="truncate text-xs text-muted-foreground">{item.metadata.author}</p>
+        {caption || item.metadata.author ? (
+          <p className="truncate text-xs text-muted-foreground">{caption ?? item.metadata.author}</p>
         ) : null}
       </div>
     </Link>
