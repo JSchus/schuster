@@ -18,7 +18,15 @@ const fmt = (ms: number) =>
  * on/off), copy it, or turn it off. Anyone with a link can open it without
  * an account until it expires.
  */
-export function SharePanel({ itemId, inline }: { itemId: string; inline: boolean }) {
+type Props = {
+  /** The item's or playlist's shares route, e.g. /api/items/{id}/shares. */
+  endpoint: string;
+  /** Plays inline on the share page, so downloads can be switched off. */
+  inline: boolean;
+  downloadLabel?: string;
+};
+
+export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download button (otherwise it can only be watched, listened to or viewed)" }: Props) {
   const [links, setLinks] = useState<ShareJson[] | null>(null);
   const [days, setDays] = useState<ShareCreateBody["days"]>(7);
   const [password, setPassword] = useState("");
@@ -26,17 +34,17 @@ export function SharePanel({ itemId, inline }: { itemId: string; inline: boolean
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    sendJson<ShareJson[]>(`/api/items/${itemId}/shares`, "GET")
+    sendJson<ShareJson[]>(endpoint, "GET")
       .then(setLinks)
       .catch((err) => toast.error((err as Error).message));
-  }, [itemId]);
+  }, [endpoint]);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
       const body: ShareCreateBody = { days, allowDownload, ...(password ? { password } : {}) };
-      const link = await sendJson<ShareJson>(`/api/items/${itemId}/shares`, "POST", body);
+      const link = await sendJson<ShareJson>(endpoint, "POST", body);
       setLinks((l) => [link, ...(l ?? [])]);
       setPassword("");
       const copied = await copyText(shareUrl(location.origin, link.token));
@@ -95,7 +103,7 @@ export function SharePanel({ itemId, inline }: { itemId: string; inline: boolean
         {inline ? (
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={allowDownload} onChange={(e) => setAllowDownload(e.target.checked)} />
-            Show a Download button (otherwise it can only be watched, listened to or viewed)
+            {downloadLabel}
           </label>
         ) : null}
         <div>

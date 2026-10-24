@@ -87,6 +87,13 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **Admin page** (`/admin`): people with roles, upload counts and storage; invite links; approved emails; total storage; cleanup of uploads that never finished.
 - **Migrations** run automatically on Vercel **production** builds (`scripts/migrate.mjs`, before `next build`). Preview builds skip them, so an unmerged branch never changes the database.
 
+### Playlists
+
+- **Anyone signed in (viewers too)** can make playlists of audio items: *Playlists* in the header, or *Playlists* on any song's page. A playlist only lists songs, so each listener hears the ones they're allowed to see (`playlistTracksFor` in `lib/db/playlists.ts`). Visibility works like shelves; the owner or an admin edits it.
+- **Player** (`components/player/playlist-player.tsx`): one native `<audio>` element (iOS background playback, AirPlay, lock screen), previous/next, shuffle, repeat, tap-to-play, auto-advance, Media Session `nexttrack`/`previoustrack`. It remembers the song and time per playlist, and saves each song's position through the normal progress API.
+- **Public links:** the same share links as items (`shares.playlist_id`), made by members/admins who can edit the playlist. A link plays what its creator can see; per-song downloads are optional.
+- **Offline** (`lib/player/offline-audio.ts`): *Keep offline* downloads every song straight from S3 into the `audio` Cache API store (each song stored once, shared between playlists). The service worker serves `/offline-audio/{id}` with byte ranges (`public/sw-range.js`), which Safari needs for media. Kept playlists also play from the `/offline` page.
+
 ## Project layout
 
 ```
@@ -252,4 +259,6 @@ The manifest, maskable icons, Apple touch icon and an offline fallback page are 
 - `tests/extract/epub.test.ts`: EPUB 2 and 3 metadata and cover extraction.
 - `tests/sharing/rules.test.ts`: roles, the sign-up gate, the role re-check, link tokens, share passwords and unlock cookies.
 - `tests/sharing/routes.test.ts`: item edit/delete (every S3 object goes), share links, invites (uses, expiry, existing accounts), admin guards (last admin, self-removal), viewers refused.
+- `tests/playlists/offline-audio.test.ts`: offline playlists (songs stored once, removal keeps shared songs, failed downloads), service-worker byte ranges, play order.
+- `tests/playlists/routes.test.ts`: playlist routes (viewers edit their own, audio only, reorder must be a permutation, signed URLs only for songs the listener may hear, public links).
 - `tests/db/sharing.int.test.ts`: the real visibility, shelf, role and invite SQL. Skipped unless `TEST_DATABASE_URL` points at a migrated Postgres, e.g. `TEST_DATABASE_URL=postgres://schuster:schuster@localhost:5432/schuster pnpm test tests/db`.

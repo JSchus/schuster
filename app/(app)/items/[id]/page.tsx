@@ -15,13 +15,14 @@ import { Button } from "@/components/ui/button";
 import { withCoverUrls } from "@/lib/covers";
 import { listPeople } from "@/lib/db/people";
 import { getItemAccess, getItemWithUploader, getProgress } from "@/lib/db/queries";
+import { listPlaylists, playlistsHolding } from "@/lib/db/playlists";
 import { listShelves, shelvesHolding } from "@/lib/db/shelves";
 import { findPsxBios } from "@/lib/games/server";
 import { isSystemId, SYSTEMS } from "@/lib/games/systems";
 import { decodeTime, resumeTime } from "@/lib/player/position";
 import { isReadable } from "@/lib/reader/progress";
 import { canMakeCover, MEDIA_TYPE_LABELS } from "@/lib/media-types";
-import { canContribute, canEdit as mayEdit, VISIBILITY_LABELS, type Viewer } from "@/lib/permissions";
+import { canContribute, canEdit as mayEdit, canEditPlaylist, VISIBILITY_LABELS, type Viewer } from "@/lib/permissions";
 import { inlineKind } from "@/lib/sharing/open";
 import { formatBytes, formatDuration } from "@/lib/utils";
 
@@ -56,6 +57,10 @@ export default async function ItemPage({ params }: Props) {
   ]);
   const holding = new Set(await shelvesHolding(item.id, shelves.map((s) => s.id)));
   const onShelves = shelves.filter((s) => holding.has(s.id));
+  const myPlaylists =
+    item.type === "audio" ? (await listPlaylists(user)).filter((p) => canEditPlaylist(user, p.ownerId)) : undefined;
+  const inPlaylists = myPlaylists ? new Set(await playlistsHolding(item.id, myPlaylists.map((p) => p.id))) : new Set<string>();
+  const pickerPlaylists = myPlaylists?.map((p) => ({ id: p.id, name: p.name, has: inPlaylists.has(p.id) }));
   const pickerShelves = canContribute(user)
     ? shelves.filter((s) => mayEdit(user, s.ownerId)).map((s) => ({ id: s.id, name: s.name, has: holding.has(s.id) }))
     : undefined;
@@ -161,6 +166,7 @@ export default async function ItemPage({ params }: Props) {
             }}
             canEdit={canEdit}
             shelves={pickerShelves}
+            playlists={pickerPlaylists}
             people={people}
             access={access}
             inline={!!inlineKind(item)}

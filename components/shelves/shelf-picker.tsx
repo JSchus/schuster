@@ -10,8 +10,17 @@ import { sendJson } from "@/lib/sharing/client";
 
 export type PickerShelf = { id: string; name: string; has: boolean };
 
-/** Tick the shelves an item belongs on, or start a new shelf with it. */
-export function ShelfPicker({ itemId, shelves: initial }: { itemId: string; shelves: PickerShelf[] }) {
+/** Shelves and playlists share this picker; only the routes and words differ. */
+const KINDS = {
+  shelf: { base: "/api/shelves", members: "items", noun: "shelf", plural: "shelves" },
+  playlist: { base: "/api/playlists", members: "tracks", noun: "playlist", plural: "playlists" },
+} as const;
+
+type Props = { itemId: string; shelves: PickerShelf[]; kind?: keyof typeof KINDS };
+
+/** Tick the shelves (or playlists) an item belongs on, or start a new one with it. */
+export function ShelfPicker({ itemId, shelves: initial, kind = "shelf" }: Props) {
+  const k = KINDS[kind];
   const router = useRouter();
   const [shelves, setShelves] = useState(initial);
   const [name, setName] = useState("");
@@ -23,7 +32,7 @@ export function ShelfPicker({ itemId, shelves: initial }: { itemId: string; shel
     flip(!shelf.has);
     setBusy(shelf.id);
     try {
-      await sendJson(`/api/shelves/${shelf.id}/items`, shelf.has ? "DELETE" : "POST", { itemId });
+      await sendJson(`${k.base}/${shelf.id}/${k.members}`, shelf.has ? "DELETE" : "POST", { itemId });
       router.refresh();
     } catch (err) {
       flip(shelf.has);
@@ -38,11 +47,11 @@ export function ShelfPicker({ itemId, shelves: initial }: { itemId: string; shel
     if (!name.trim()) return;
     setBusy("new");
     try {
-      const { id } = await sendJson<{ id: string }>("/api/shelves", "POST", { name });
-      await sendJson(`/api/shelves/${id}/items`, "POST", { itemId });
+      const { id } = await sendJson<{ id: string }>(k.base, "POST", { name });
+      await sendJson(`${k.base}/${id}/${k.members}`, "POST", { itemId });
       setShelves((all) => [...all, { id, name: name.trim(), has: true }]);
       setName("");
-      toast.success("Shelf created");
+      toast.success(kind === "shelf" ? "Shelf created" : "Playlist created");
       router.refresh();
     } catch (err) {
       toast.error((err as Error).message);
@@ -64,10 +73,10 @@ export function ShelfPicker({ itemId, shelves: initial }: { itemId: string; shel
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">You don&apos;t have any shelves yet.</p>
+        <p className="text-sm text-muted-foreground">You don&apos;t have any {k.plural} yet.</p>
       )}
       <form onSubmit={create} className="flex gap-2">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New shelf name" maxLength={100} aria-label="New shelf name" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`New ${k.noun} name`} maxLength={100} aria-label={`New ${k.noun} name`} />
         <Button type="submit" variant="outline" disabled={busy === "new" || !name.trim()}>
           {busy === "new" ? <Loader2 className="animate-spin" /> : <Plus />} Add
         </Button>

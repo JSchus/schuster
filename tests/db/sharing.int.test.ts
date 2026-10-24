@@ -18,6 +18,7 @@ describe.skipIf(!url)("sharing SQL (Postgres)", async () => {
   const q = await import("@/lib/db/queries");
   const people = await import("@/lib/db/people");
   const shelves = await import("@/lib/db/shelves");
+  const playlists = await import("@/lib/db/playlists");
   const { inArray, like } = await import("drizzle-orm");
 
   const tag = `t${randomUUID().slice(0, 8)}`;
@@ -84,6 +85,27 @@ describe.skipIf(!url)("sharing SQL (Postgres)", async () => {
     expect(friendView?.items).toBe(2); // the private item isn't counted
     expect((await shelves.listShelves(as(u.stranger))).some((s) => s.id === shelf.id)).toBe(false);
     expect(await shelves.shelvesHolding(item.private, [shelf.id])).toEqual([shelf.id]);
+  });
+
+  it("keeps playlist order, filters songs per listener, and counts what each can hear", async () => {
+    await db().update(mediaItems).set({ type: "audio", metadata: { durationSec: 60 } }).where(inArray(mediaItems.id, Object.values(item)));
+    const pl = await playlists.createPlaylist({ name: `${tag} mix`, ownerId: u.friend, visibility: "everyone" });
+    for (const id of [item.private, item.everyone, item.people]) await playlists.addTrack(pl.id, id);
+    await playlists.addTrack(pl.id, item.everyone); // duplicate: ignored
+    expect(await playlists.allTrackIds(pl.id)).toEqual([item.private, item.everyone, item.people]);
+    await playlists.reorderTracks(pl.id, [item.people, item.everyone, item.private]);
+    const order = async (v: { id: string; role: "admin" | "member" | "viewer" }) =>
+      (await playlists.playlistTracksFor(pl.id, v)).map((i) => i.id);
+    expect(await order(as(u.owner))).toEqual([item.people, item.everyone, item.private]);
+    expect(await order(as(u.friend, "viewer"))).toEqual([item.people, item.everyone]);
+    expect(await order(as(u.stranger))).toEqual([item.everyone]);
+    const mine = (await playlists.listPlaylists(as(u.stranger))).find((p) => p.id === pl.id);
+    expect(mine).toMatchObject({ tracks: 1, seconds: 60 });
+    await playlists.updatePlaylist(pl.id, { visibility: "private" });
+    expect(await playlists.getPlaylist(pl.id, as(u.stranger))).toBeUndefined();
+    expect(await playlists.getPlaylist(pl.id, as(u.friend, "viewer"))).toBeDefined(); // owner
+    expect(await playlists.playlistsHolding(item.people, [pl.id])).toEqual([pl.id]);
+    await playlists.deletePlaylist(pl.id);
   });
 
   it("changes roles and reports storage per person", async () => {

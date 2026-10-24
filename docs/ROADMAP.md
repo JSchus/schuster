@@ -60,6 +60,15 @@ Follow-ups: netplay, more consoles (DS, PSP: these need threads and COOP/COEP), 
 
 Follow-ups: audit log (uploads, deletes, shares), a `kid` role with filtered shelves, choosing visibility at upload time, reading a shared EPUB/PDF in the browser instead of downloading, rate limiting share-link passwords (needs a KV store).
 
+## Playlists ✅
+
+- Playlists of audio items: anyone (viewers too) can make and edit their own; visible to everyone, specific people, or only the owner.
+- Player with shuffle, repeat, auto-advance, lock-screen next/previous, and resume per playlist.
+- Public expiring links (optional password and per-song downloads).
+- **Keep offline:** songs are saved on the device and play with no connection, from the playlist page or the offline page.
+
+Follow-ups: drag-and-drop reordering, playlist cover art (a grid of the first four covers), "Play next" / queue from anywhere, crossfade, offline video.
+
 ## Deferred / housekeeping
 
 - A daily Vercel Cron (Hobby allows daily) that deletes `pending` rows older than 3 days (the admin page can already clean them up by hand). The S3 lifecycle rule already aborts the parts.

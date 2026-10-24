@@ -3,6 +3,7 @@ import { Link } from "next-view-transitions";
 import { MediaGrid } from "@/components/library/media-grid";
 import { ContinueShelf } from "@/components/library/continue-shelf";
 import { RecentlyAdded } from "@/components/library/recently-added";
+import { PlaylistStrip } from "@/components/playlists/playlist-strip";
 import { ShelfStrip } from "@/components/shelves/shelf-strip";
 import { SearchBox } from "@/components/library/search-box";
 import { TagFilter } from "@/components/library/tag-filter";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { withCoverUrls } from "@/lib/covers";
 import { auth } from "@/auth";
 import { allTags, continueReading, listItems, recentItems } from "@/lib/db/queries";
+import { listPlaylists } from "@/lib/db/playlists";
 import { listShelves } from "@/lib/db/shelves";
 import type { Viewer } from "@/lib/permissions";
 import { isMediaType, MEDIA_TYPE_LABELS } from "@/lib/media-types";
@@ -33,12 +35,13 @@ export default async function LibraryPage({ searchParams }: Props) {
   const session = await auth();
   const user = session?.user;
   if (!user) return null; // the layout redirects to /login
-  const [items, recent, tags, reading, shelves] = await Promise.all([
+  const [items, recent, tags, reading, shelves, playlists] = await Promise.all([
     listItems(user, params).then(withCoverUrls),
     filtered ? Promise.resolve([]) : recentItems(user, 12).then(withCoverUrls),
     allTags(user, 30),
     filtered ? Promise.resolve([]) : readingShelf(user),
     filtered ? Promise.resolve([]) : listShelves(user),
+    filtered ? Promise.resolve([]) : listPlaylists(user),
   ]);
 
   return (
@@ -54,6 +57,7 @@ export default async function LibraryPage({ searchParams }: Props) {
 
       <ContinueShelf items={reading} />
       <ShelfStrip shelves={shelves} />
+      <PlaylistStrip playlists={playlists} />
       {!filtered && items.length > recent.length ? <RecentlyAdded items={recent} /> : null}
 
       {items.length ? (

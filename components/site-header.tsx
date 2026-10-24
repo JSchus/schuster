@@ -1,4 +1,4 @@
-import { Library, LogOut, Shield, Upload } from "lucide-react";
+import { Library, ListMusic, LogOut, Shield, Upload } from "lucide-react";
 import { Link } from "next-view-transitions";
 import { signOut } from "@/auth";
 import { AddPasskeyButton } from "@/components/auth/add-passkey-button";
@@ -23,6 +23,11 @@ export function SiteHeader({ user }: { user: { name?: string | null; email?: str
         <Button asChild variant="ghost" size="sm">
           <Link href="/shelves" aria-label="Shelves">
             <Library /> <span className="hidden sm:inline">Shelves</span>
+          </Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/playlists" aria-label="Playlists">
+            <ListMusic /> <span className="hidden sm:inline">Playlists</span>
           </Link>
         </Button>
         {canContribute(user) ? (

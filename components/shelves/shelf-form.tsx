@@ -15,7 +15,14 @@ import type { ShelfBody } from "@/lib/sharing/protocol";
 
 type Existing = { id: string; name: string; description: string | null; visibility: Visibility; ownerId: string };
 
+const KINDS = {
+  shelf: { api: "/api/shelves", page: "/shelves", noun: "shelf", Noun: "Shelf", hint: "A shelf only groups things: people see the items on it that they're allowed to see.", items: "items" },
+  playlist: { api: "/api/playlists", page: "/playlists", noun: "playlist", Noun: "Playlist", hint: "A playlist only lists songs: people hear the ones they're allowed to.", items: "songs" },
+} as const;
+
 type Props = {
+  /** Which collection this form edits (default: shelf). */
+  kind?: keyof typeof KINDS;
   /** Omit to create a new shelf. */
   shelf?: Existing;
   ownerId: string;
@@ -24,7 +31,8 @@ type Props = {
 };
 
 /** Create a shelf, or rename / re-share / delete an existing one. */
-export function ShelfForm({ shelf, ownerId, people, access = [] }: Props) {
+export function ShelfForm({ kind = "shelf", shelf, ownerId, people, access = [] }: Props) {
+  const k = KINDS[kind];
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(shelf?.name ?? "");
@@ -44,13 +52,13 @@ export function ShelfForm({ shelf, ownerId, people, access = [] }: Props) {
         ...(visibility === "people" ? { people: selected } : {}),
       };
       if (shelf) {
-        await sendJson(`/api/shelves/${shelf.id}`, "PATCH", body);
-        toast.success("Shelf saved");
+        await sendJson(`${k.api}/${shelf.id}`, "PATCH", body);
+        toast.success(`${k.Noun} saved`);
         setOpen(false);
         router.refresh();
       } else {
-        const { id } = await sendJson<{ id: string }>("/api/shelves", "POST", body);
-        router.push(`/shelves/${id}`);
+        const { id } = await sendJson<{ id: string }>(k.api, "POST", body);
+        router.push(`${k.page}/${id}`);
       }
     } catch (err) {
       toast.error((err as Error).message);
@@ -60,10 +68,10 @@ export function ShelfForm({ shelf, ownerId, people, access = [] }: Props) {
   }
 
   async function remove() {
-    if (!shelf || !window.confirm(`Delete the shelf “${shelf.name}”? The items stay in the library.`)) return;
+    if (!shelf || !window.confirm(`Delete the ${k.noun} “${shelf.name}”? The ${k.items} stay in the library.`)) return;
     try {
-      await sendJson(`/api/shelves/${shelf.id}`, "DELETE");
-      router.push("/shelves");
+      await sendJson(`${k.api}/${shelf.id}`, "DELETE");
+      router.push(k.page);
       router.refresh();
     } catch (err) {
       toast.error((err as Error).message);
@@ -73,9 +81,9 @@ export function ShelfForm({ shelf, ownerId, people, access = [] }: Props) {
   if (!open) {
     return (
       <Button variant={shelf ? "outline" : "default"} size="sm" onClick={() => setOpen(true)}>
-        {shelf ? "Shelf settings" : (
+        {shelf ? `${k.Noun} settings` : (
           <>
-            <Plus /> New shelf
+            <Plus /> New {k.noun}
           </>
         )}
       </Button>
@@ -99,21 +107,19 @@ export function ShelfForm({ shelf, ownerId, people, access = [] }: Props) {
         ownerId={shelf?.ownerId ?? ownerId}
         selected={selected}
         onSelected={setSelected}
-        noun="shelf"
+        noun={k.noun}
       />
-      <p className="text-xs text-muted-foreground">
-        A shelf only groups things: people see the items on it that they&apos;re allowed to see.
-      </p>
+      <p className="text-xs text-muted-foreground">{k.hint}</p>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={busy}>
-          {busy ? <Loader2 className="animate-spin" /> : null} {shelf ? "Save" : "Create shelf"}
+          {busy ? <Loader2 className="animate-spin" /> : null} {shelf ? "Save" : `Create ${k.noun}`}
         </Button>
         <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
           Cancel
         </Button>
         {shelf ? (
           <Button type="button" variant="ghost" className="ml-auto text-destructive" onClick={remove}>
-            <Trash2 /> Delete shelf
+            <Trash2 /> Delete {k.noun}
           </Button>
         ) : null}
       </div>
