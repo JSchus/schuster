@@ -37,17 +37,15 @@ Follow-ups: highlights and bookmarks, reading statistics, offline covers, search
 
 Follow-ups: CloudFront signed cookies (cheaper egress), a MediaConvert job for formats browsers can't play, `.m4b` chapters, automatic subtitle matching at upload (`movie.en.srt` next to `movie.mp4`), and offline video.
 
-## Stage 4: Retro games (EmulatorJS) and a web-games shelf
+## Stage 4: Retro games (EmulatorJS) and a web-games shelf ✅
 
-- `/items/[id]/play` embeds [EmulatorJS](https://emulatorjs.org). The core is chosen from the ROM extension (`nes`, `snes`, `gba`, `gb`, `n64`, `segaMD`, …), and the ROM is loaded from a presigned GET.
-  - Host the EmulatorJS data/cores in the bucket or on a CDN, not in the Next.js bundle.
-  - Needs COOP/COEP headers on the play route only, for threaded cores.
-- Save states and SRAM: upload to `saves/{userId}/{itemId}/…` via a presigned PUT, listed per user. They sync across devices like reading progress.
-- Gamepad support and on-screen touch controls on mobile.
-- **Web-games shelf:** HTML5 games uploaded as a `.zip`.
-  - Unzip in the browser and upload each file to `webgames/{itemId}/…`.
-  - Serve them in a sandboxed `<iframe>` from a separate origin (e.g. `games.schuster.me` behind CloudFront), so game code can never read the app's cookies.
-- BIOS files (PS1 etc.) are admin-only uploads, never listed in the library.
+- `/play/[id]` runs **EmulatorJS 4.2.3**, self-hosted from npm under `/emulatorjs/` (pinned, no third-party CDN). It supports NES, SNES, Game Boy/Color, GBA, N64, Genesis/Master System/Game Gear and PS1. ROMs (or zipped ROMs) stream from presigned S3 URLs. No threaded cores, so no COOP/COEP headers are needed.
+- The console is detected from the ROM extension at upload, or from the ROM inside a `.zip`. Editors can change it on the game page.
+- **Cloud saves per user:** "Save state" and "Load state" in the emulator go to `saves/{userId}/{itemId}/` in S3. In-game (battery/memory card) saves upload every minute and when the tab is hidden, and are restored on start. The game page shows "Cloud save · 2 h ago" and a **Resume** button, on any device.
+- **PS1 BIOS:** the admin uploads it once (`bios/psx/scph5501.bin` etc.).
+- **Web games:** a `.zip` with an `index.html` is unzipped in the browser and published file by file to the bucket's **public `webgames/` folder**. It plays in a sandboxed iframe on S3's own domain, so it can't read schuster.me cookies or pages.
+
+Follow-ups: netplay, more consoles (DS, PSP: these need threads and COOP/COEP), multiple save slots, cheats, cover art for games (box-art lookup or a screenshot from the first cloud save).
 
 ## Stage 5: Sharing, roles and invites
 

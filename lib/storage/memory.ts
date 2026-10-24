@@ -9,7 +9,7 @@ type Pending = { key: string; contentType: string; parts: Map<number, Uint8Array
  * browser PUT that would normally hit S3.
  */
 export class MemoryStorageAdapter implements StorageAdapter {
-  readonly objects = new Map<string, { body: Uint8Array; contentType: string }>();
+  readonly objects = new Map<string, { body: Uint8Array; contentType: string; modified?: Date }>();
   readonly uploads = new Map<string, Pending>();
 
   async createMultipartUpload(key: string, opts: { contentType: string }) {
@@ -68,11 +68,15 @@ export class MemoryStorageAdapter implements StorageAdapter {
 
   async head(key: string) {
     const obj = this.objects.get(key);
-    return obj ? { size: obj.body.length, contentType: obj.contentType } : null;
+    return obj ? { size: obj.body.length, contentType: obj.contentType, lastModified: obj.modified } : null;
   }
 
   async delete(key: string) {
     this.objects.delete(key);
+  }
+
+  publicUrl(key: string) {
+    return `memory://public/${key}`;
   }
 
   private requireUpload(key: string, uploadId: string): Pending {

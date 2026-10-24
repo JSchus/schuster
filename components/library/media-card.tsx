@@ -1,6 +1,7 @@
 import { Link } from "next-view-transitions";
 import { Cover } from "@/components/library/cover";
 import type { ItemWithCover } from "@/lib/covers";
+import { isSystemId, SYSTEMS } from "@/lib/games/systems";
 
 /** One tile in the library grid. */
 export function MediaCard({
@@ -27,6 +28,11 @@ export function MediaCard({
         transitionName={morph ? `cover-${item.id}` : undefined}
         className="shadow-sm transition-transform group-hover:-translate-y-0.5 group-hover:shadow-md"
       >
+        {item.type === "game" && (item.metadata.system || item.metadata.web) ? (
+          <span className="absolute top-1.5 left-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+            {isSystemId(item.metadata.system) ? SYSTEMS[item.metadata.system].label : "Web"}
+          </span>
+        ) : null}
         {progress !== undefined ? (
           <div className="absolute inset-x-0 bottom-0 h-1 bg-black/30" aria-label={`${progress}% read`}>
             <div className="h-full bg-primary" style={{ width: `${progress}%` }} />

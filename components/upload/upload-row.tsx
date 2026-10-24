@@ -15,6 +15,7 @@ const LABELS: Record<QueueEntry["status"], string> = {
   preparing: "Starting…",
   uploading: "Uploading",
   finishing: "Finishing…",
+  publishing: "Publishing game…",
   done: "Done",
   error: "Failed",
   cancelled: "Cancelled",
@@ -55,11 +56,12 @@ export function UploadRow({ entry, onCancel }: { entry: QueueEntry; onCancel: ()
           ) : null}
           {LABELS[entry.status]}
           {entry.status === "uploading" ? ` ${pct}%` : null}
+          {entry.status === "publishing" && entry.published ? ` ${entry.published[0]}/${entry.published[1]} files` : null}
           {entry.error ? <span className="truncate text-destructive">: {entry.error}</span> : null}
         </p>
         {entry.status === "done" ? <CoverNote entry={entry} /> : null}
       </div>
-      {entry.status === "done" && entry.itemId ? (
+      {(entry.status === "done" || entry.status === "error") && entry.itemId ? (
         <Button asChild variant="outline" size="sm">
           <Link href={`/items/${entry.itemId}`}>View</Link>
         </Button>

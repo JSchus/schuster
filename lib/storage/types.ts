@@ -31,7 +31,13 @@ export interface StorageAdapter {
   presignGet(key: string, opts?: PresignGetOptions): Promise<string>;
 
   /** Object metadata, or null if it does not exist. */
-  head(key: string): Promise<{ size: number; contentType?: string } | null>;
+  head(key: string): Promise<{ size: number; contentType?: string; lastModified?: Date } | null>;
+
+  /**
+   * Unsigned URL for a key. Only readable for prefixes the bucket policy
+   * makes public (webgames/); everything else answers 403.
+   */
+  publicUrl(key: string): string;
 
   delete(key: string): Promise<void>;
 }

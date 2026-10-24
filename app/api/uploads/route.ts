@@ -35,7 +35,11 @@ export const POST = handle(async (req: Request) => {
     size: body.size,
     mime: body.mime,
     tags: body.tags,
-    metadata: { ...body.metadata, originalFilename: body.filename },
+    metadata: {
+      ...body.metadata,
+      ...(body.metadata.web ? { web: { entry: body.metadata.web.entry, status: "pending" as const } } : {}),
+      originalFilename: body.filename,
+    },
     addedBy: user.id,
   });
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Download, Headphones, Play } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, Gamepad2, Headphones, Play } from "lucide-react";
 import type { Metadata } from "next";
 import { Link } from "next-view-transitions";
 import { notFound } from "next/navigation";
@@ -6,12 +6,15 @@ import { auth } from "@/auth";
 import { Cover } from "@/components/library/cover";
 import { libraryHref } from "@/components/library/filter-link";
 import { MakeCoverButton } from "@/components/library/make-cover-button";
+import { GamePanel } from "@/components/games/game-panel";
 import { SubtitleManager } from "@/components/player/subtitle-manager";
 import { MediaTypeIcon } from "@/components/library/media-type-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { withCoverUrls } from "@/lib/covers";
 import { getItemWithUploader, getProgress } from "@/lib/db/queries";
+import { findPsxBios } from "@/lib/games/server";
+import { isSystemId, SYSTEMS } from "@/lib/games/systems";
 import { decodeTime, resumeTime } from "@/lib/player/position";
 import { isReadable } from "@/lib/reader/progress";
 import { canMakeCover, MEDIA_TYPE_LABELS } from "@/lib/media-types";
@@ -45,11 +48,16 @@ export default async function ItemPage({ params }: Props) {
   const progress = (readable || playable) && user ? await getProgress(user.id, item.id) : undefined;
   // Mirrors the player: no "Resume" if you stopped in the credits.
   const resumeAt = playable ? resumeTime(decodeTime(progress?.position), m.durationSec ?? Number.NaN) : 0;
-  const primaryAction = readable || playable;
+  const isGame = item.type === "game";
+  const system = isSystemId(m.system) ? m.system : undefined;
+  const gameReady = isGame && (m.web ? m.web.status === "ready" : !!system);
+  const biosMissing = system === "psx" ? !(await findPsxBios()) : false;
+  const primaryAction = readable || playable || gameReady;
 
   const facts: [string, string | undefined][] = [
     ["Author", m.author],
     ["Publisher", m.publisher],
+    ["Console", system ? SYSTEMS[system].label : m.web ? "Web game" : undefined],
     ["Duration", m.durationSec ? formatDuration(m.durationSec) : undefined],
     ["Resolution", m.width && m.height ? `${m.width}×${m.height}` : undefined],
     ["Language", m.language],
@@ -101,6 +109,14 @@ export default async function ItemPage({ params }: Props) {
                 </Link>
               </Button>
             ) : null}
+            {gameReady ? (
+              <Button asChild size="lg">
+                {/* Full page load: the emulator needs a fresh page each time. */}
+                <a href={`/play/${item.id}`}>
+                  <Gamepad2 /> Play
+                </a>
+              </Button>
+            ) : null}
             <Button asChild size="lg" variant={primaryAction ? "outline" : "default"}>
               <a href={`/api/items/${item.id}/download`} download>
                 <Download /> Download
@@ -115,6 +131,17 @@ export default async function ItemPage({ params }: Props) {
             <p className="max-w-prose leading-relaxed whitespace-pre-line text-muted-foreground">
               {item.description}
             </p>
+          ) : null}
+
+          {isGame ? (
+            <GamePanel
+              itemId={item.id}
+              system={system}
+              isWeb={!!m.web}
+              canEdit={canEdit}
+              isAdmin={user?.role === "admin"}
+              biosMissing={biosMissing}
+            />
           ) : null}
 
           {canEdit && item.type === "video" ? <SubtitleManager itemId={item.id} tracks={m.subtitles ?? []} /> : null}

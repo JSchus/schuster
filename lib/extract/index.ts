@@ -3,6 +3,7 @@ import type { MediaType } from "@/lib/media-types";
 export { canMakeCover } from "@/lib/media-types";
 import type { MediaMetadata } from "@/lib/db/schema";
 import { detectMediaType, normalizeMime, titleFromFilename } from "./detect";
+import { detectRom, detectZip } from "./game";
 import { parseEpub } from "./epub";
 import { imageSize, toCoverJpeg } from "./image";
 import { probeAudio, probeVideo } from "./media";
@@ -43,6 +44,11 @@ export async function extractFileInfo(file: File): Promise<Extracted> {
     if (base.type === "video") return { ...base, ...(await extractVideo(file)) };
     if (base.type === "audio") return { ...base, metadata: await probeAudio(file) };
     if (mime.startsWith("image/")) return { ...base, ...(await extractImage(file)) };
+    if (base.type === "game") return { ...base, metadata: { ...detectRom(file.name) } };
+    if (/\.zip$/i.test(file.name)) {
+      const game = await detectZip(file);
+      if (game) return { ...base, type: "game", metadata: { ...game } };
+    }
   } catch (err) {
     console.warn(`Metadata extraction failed for ${file.name}`, err);
   }

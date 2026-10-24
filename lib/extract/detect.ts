@@ -1,7 +1,7 @@
 import type { MediaType } from "@/lib/media-types";
 
 const BOOK_EXT = /\.(epub|pdf|mobi|azw3?|cbz|cbr|djvu|fb2)$/i;
-const GAME_EXT = /\.(nes|sfc|smc|gb|gbc|gba|n64|z64|v64|nds|md|gen|sms|gg|pce|a26|lnx|ws|wsc|ngp|swf)$/i;
+const GAME_EXT = /\.(nes|fds|unf|unif|sfc|smc|gb|gbc|gba|n64|z64|v64|nds|md|gen|smd|sms|gg|chd|pbp|cue|pce|a26|lnx|ws|wsc|ngp|swf)$/i;
 const VIDEO_EXT = /\.(mp4|m4v|mov|mkv|webm|avi)$/i;
 const AUDIO_EXT = /\.(mp3|m4a|m4b|aac|flac|ogg|opus|wav)$/i;
 

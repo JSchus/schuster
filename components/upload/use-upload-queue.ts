@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extractFileInfo, type Extracted } from "@/lib/extract";
+import { publishWebGame } from "@/lib/games/publish";
 import { browserTransport } from "@/lib/upload/api-client";
 import { uploadFile, type UploadPhase } from "@/lib/upload/uploader";
 
-export type QueueStatus = "extracting" | "queued" | UploadPhase | "cancelled";
+export type QueueStatus = "extracting" | "queued" | UploadPhase | "publishing" | "cancelled";
 
 export type QueueEntry = {
   id: string;
@@ -16,6 +17,8 @@ export type QueueEntry = {
   coverUrl?: string;
   itemId?: string;
   error?: string;
+  /** Web games: files published so far / total. */
+  published?: [number, number];
 };
 
 /** Files uploaded at once; each file also runs parallel part uploads. */
@@ -60,6 +63,16 @@ export function useUploadQueue() {
           },
           onProgress: (p) => patch(entry.id, { status: p.phase, loaded: p.loaded }),
         });
+        if (info.metadata.web) {
+          // Web game: unzip in the browser and publish its files to webgames/{id}/.
+          patch(entry.id, { status: "publishing", itemId });
+          try {
+            await publishWebGame(itemId, entry.file, (d, t) => patch(entry.id, { published: [d, t] }));
+          } catch (err) {
+            patch(entry.id, { status: "error", error: `Uploaded, but publishing failed: ${(err as Error).message}. Use “Republish” on its page.` });
+            return;
+          }
+        }
         patch(entry.id, { status: "done", itemId });
       } catch (err) {
         patch(entry.id, ctrl.signal.aborted

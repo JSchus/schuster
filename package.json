@@ -8,8 +8,8 @@
     "node": ">=20.18"
   },
   "scripts": {
-    "dev": "node scripts/copy-pdf-worker.mjs && next dev",
-    "build": "node scripts/copy-pdf-worker.mjs && next build",
+    "dev": "pnpm assets && next dev",
+    "build": "pnpm assets && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -19,13 +19,22 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "dev:s3": "node scripts/dev-s3.mjs",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "assets": "node scripts/copy-pdf-worker.mjs && node scripts/copy-emulatorjs.mjs"
   },
   "dependencies": {
     "@auth/core": "0.41.3",
     "@auth/drizzle-adapter": "1.11.3",
     "@aws-sdk/client-s3": "^3.1154.0",
     "@aws-sdk/s3-request-presigner": "^3.1154.0",
+    "@emulatorjs/core-fceumm": "4.2.3",
+    "@emulatorjs/core-gambatte": "4.2.3",
+    "@emulatorjs/core-genesis_plus_gx": "4.2.3",
+    "@emulatorjs/core-mgba": "4.2.3",
+    "@emulatorjs/core-mupen64plus_next": "4.2.3",
+    "@emulatorjs/core-pcsx_rearmed": "4.2.3",
+    "@emulatorjs/core-snes9x": "4.2.3",
+    "@emulatorjs/emulatorjs": "4.2.3",
     "@neondatabase/serverless": "1.2.0",
     "@radix-ui/react-label": "^2.1.17",
     "@radix-ui/react-progress": "^1.2.1",

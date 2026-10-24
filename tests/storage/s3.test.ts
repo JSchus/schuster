@@ -8,7 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { mockClient } from "aws-sdk-client-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { S3StorageAdapter, contentDisposition, floorDate } from "@/lib/storage/s3";
+import { S3StorageAdapter, contentDisposition, floorDate, publicObjectUrl } from "@/lib/storage/s3";
 
 const client = new S3Client({
   region: "us-east-1",
@@ -64,11 +64,11 @@ describe("S3StorageAdapter control plane", () => {
   });
 
   it("head returns size, or null when missing", async () => {
-    s3.on(HeadObjectCommand, { Key: "there" }).resolves({ ContentLength: 42, ContentType: "a/b" });
+    s3.on(HeadObjectCommand, { Key: "there" }).resolves({ ContentLength: 42, ContentType: "a/b", LastModified: new Date(5) });
     s3.on(HeadObjectCommand, { Key: "gone" }).rejects(
       new NotFound({ message: "nope", $metadata: {} }),
     );
-    await expect(adapter.head("there")).resolves.toEqual({ size: 42, contentType: "a/b" });
+    await expect(adapter.head("there")).resolves.toEqual({ size: 42, contentType: "a/b", lastModified: new Date(5) });
     await expect(adapter.head("gone")).resolves.toBeNull();
   });
 });
@@ -128,6 +128,23 @@ describe("S3StorageAdapter presigning", () => {
     const url = new URL(await adapter.presignPut("covers/1.jpg", { contentType: "image/jpeg" }));
     expect(url.pathname).toBe("/covers/1.jpg");
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toContain("host");
+  });
+});
+
+describe("publicObjectUrl", () => {
+  it("uses virtual-hosted AWS URLs and encodes key segments", () => {
+    expect(publicObjectUrl({ region: "us-east-1", pathStyle: false }, "media", "webgames/1/My Game/index.html")).toBe(
+      "https://media.s3.us-east-1.amazonaws.com/webgames/1/My%20Game/index.html",
+    );
+  });
+  it("uses path style for custom endpoints", () => {
+    expect(publicObjectUrl({ endpoint: "http://localhost:5055/", region: "x", pathStyle: true }, "b", "webgames/k")).toBe(
+      "http://localhost:5055/b/webgames/k",
+    );
+  });
+  it("is exposed on the adapter", () => {
+    const a = new S3StorageAdapter({ bucket: "b", clientConfig: { region: "eu-west-1" } });
+    expect(a.publicUrl("webgames/x/index.html")).toBe("https://b.s3.eu-west-1.amazonaws.com/webgames/x/index.html");
   });
 });
 
