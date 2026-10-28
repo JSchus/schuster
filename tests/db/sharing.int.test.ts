@@ -20,6 +20,8 @@ describe.skipIf(!url)("sharing SQL (Postgres)", async () => {
   const shelves = await import("@/lib/db/shelves");
   const playlists = await import("@/lib/db/playlists");
   const links = await import("@/lib/db/links");
+  const contactsDb = await import("@/lib/db/contacts");
+  const { planImport } = await import("@/lib/contacts/merge");
   const { inArray, like } = await import("drizzle-orm");
 
   const tag = `t${randomUUID().slice(0, 8)}`;
@@ -123,6 +125,33 @@ describe.skipIf(!url)("sharing SQL (Postgres)", async () => {
     expect(links.isLive(await links.getLink(slug))).toBe(false);
     expect((await links.listLinks(as(u.stranger))).some((l) => l.slug === slug)).toBe(false);
     expect((await links.listLinks(as(u.admin, "admin"))).some((l) => l.slug === slug)).toBe(true);
+  });
+
+  it("keeps contacts private to their owner and re-imports without duplicates", async () => {
+    const file = [
+      { name: "Anna", emails: ["anna@x.test"], phones: ["3125550100"], birthday: "--04-12", org: null, note: null, uid: `${tag}-A` },
+      { name: "Bob", emails: [], phones: ["3125550199"], birthday: null, org: "Pizza", note: null, uid: null },
+    ];
+    const importOnce = async () =>
+      contactsDb.applyImport(u.friend, planImport(await contactsDb.listContacts(u.friend), file));
+    await importOnce();
+    await importOnce();
+    const mine = await contactsDb.listContacts(u.friend);
+    expect(mine.map((c) => c.name).sort()).toEqual(["Anna", "Bob"]);
+    expect(mine.find((c) => c.name === "Anna")).toMatchObject({ emails: ["anna@x.test"], birthday: "--04-12" });
+    expect(await contactsDb.listContacts(u.friend, "pizza")).toHaveLength(1);
+    expect(await contactsDb.listContacts(u.friend, "555-0100".replace("-", ""))).toHaveLength(1);
+    // Nobody else sees them, admins included.
+    expect(await contactsDb.listContacts(u.admin)).toEqual([]);
+    expect(await contactsDb.getContact(u.admin, mine[0]!.id)).toBeUndefined();
+    await contactsDb.deleteContact(u.admin, mine[0]!.id);
+    expect(await contactsDb.listContacts(u.friend)).toHaveLength(2);
+    // Directory shows only people who opted in.
+    await contactsDb.upsertProfile(u.friend, { displayName: "Friend", phone: null, birthday: null, address: null, note: null, listed: false });
+    expect((await contactsDb.listDirectory()).some((e) => e.userId === u.friend)).toBe(false);
+    await contactsDb.upsertProfile(u.friend, { displayName: "Friend", phone: null, birthday: null, address: null, note: null, listed: true });
+    expect((await contactsDb.listDirectory()).find((e) => e.userId === u.friend)).toMatchObject({ displayName: "Friend" });
+    expect(await contactsDb.deleteAllContacts(u.friend)).toBe(2);
   });
 
   it("changes roles and reports storage per person", async () => {

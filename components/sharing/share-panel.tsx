@@ -3,6 +3,7 @@
 import { Copy, Link2, Loader2, Lock, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { SendTo } from "@/components/contacts/send-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -155,6 +156,12 @@ export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download 
               <Button variant="ghost" size="sm" onClick={() => shorten(s)} title="Make a short schuster.me/go/… version">
                 <Link2 /> {short[s.token] ? `/go/${short[s.token]}` : "Short link"}
               </Button>
+              <SendTo
+                message={() => ({
+                  subject: "Something for you from Schuster Media",
+                  body: `Here's something I shared with you on Schuster Media${s.hasPassword ? " (I'll send you the password)" : ""}: ${shareUrl(location.origin, s.token)}`,
+                })}
+              />
               <Button variant="ghost" size="sm" onClick={() => revoke(s.token)} aria-label="Turn this link off">
                 <X /> Turn off
               </Button>

@@ -101,6 +101,15 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - Optional expiry and password (scrypt; an httpOnly cookie remembers it for 12 h), visit counts, QR codes (made in the browser with `qrcode`), change destination, turn off or on.
 - **Short link** next to any share link makes a `/go/` version that expires with it.
 
+### Contacts and family directory
+
+- **People → My contacts** (`/contacts`): a private address book for everyone, viewers too. **Every query is scoped to the owner, with no admin exception** (`lib/db/contacts.ts`).
+- **Import:** the phone's export (`.vcf`) is read in the browser (`lib/contacts/vcard.ts`: vCard 2.1/3.0/4.0, quoted-printable, Apple `item1.` groups, photos skipped). The person picks who to keep, and only those are sent, in batches of 500. Re-imports match on UID, then email or phone (`lib/contacts/merge.ts`), so nothing is duplicated.
+- **Text / Email / Send to…** open the person's own Messages or Mail app with the message filled in (`sms:` / `mailto:` in `lib/contacts/compose.ts`). The server sends nothing. **Send to…** sits next to share links, short links and invite links.
+- **Invite** (admins): a single-use, 7-day invite for a contact, then Messages or Mail opens with the link.
+- **Family directory** (`/family`): each account holder can list their own name, phone, birthday and address (`profiles`, off by default). Imported contacts never appear there.
+- Upcoming birthdays (next 30 days, Chicago time) show on both pages.
+
 ## Project layout
 
 ```

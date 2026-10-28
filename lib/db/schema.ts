@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
@@ -398,6 +399,69 @@ export const shortLinks = pgTable(
   (t) => [index("short_links_owner_idx").on(t.ownerId)],
 );
 
+/* ------------------------------------------------------------------ */
+/* Contacts                                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A person's own address book, imported from their phone (vCard) or typed
+ * in. Private: every query is scoped to owner_id, with no admin exception.
+ */
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    emails: text("emails")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    phones: text("phones")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** "YYYY-MM-DD", or "--MM-DD" when the year is unknown. */
+    birthday: text("birthday"),
+    org: text("org"),
+    note: text("note"),
+    /** vCard UID, so re-importing the same phone export updates instead of duplicating. */
+    sourceUid: text("source_uid"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("contacts_owner_idx").on(t.ownerId),
+    uniqueIndex("contacts_owner_uid_idx").on(t.ownerId, t.sourceUid),
+  ],
+);
+
+/**
+ * Family directory: what each account holder chooses to show the family
+ * about themselves. Off (listed = false) until they turn it on.
+ */
+export const profiles = pgTable("profiles", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  displayName: text("display_name"),
+  phone: text("phone"),
+  /** "YYYY-MM-DD" or "--MM-DD". */
+  birthday: text("birthday"),
+  address: text("address"),
+  note: text("note"),
+  listed: boolean("listed").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export type User = typeof users.$inferSelect;
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
@@ -406,3 +470,5 @@ export type Share = typeof shares.$inferSelect;
 export type Shelf = typeof shelves.$inferSelect;
 export type Playlist = typeof playlists.$inferSelect;
 export type ShortLink = typeof shortLinks.$inferSelect;
+export type Contact = typeof contacts.$inferSelect;
+export type Profile = typeof profiles.$inferSelect;

@@ -257,6 +257,17 @@ Nothing to set up: the next production deploy adds the table itself.
 - [ ] *QR* shows a printable QR code. *Turn off* stops a link at once.
 - [ ] On any share link, *Short link* makes a `schuster.me/go/…` version.
 
+## 13. Contacts and family directory
+
+Nothing to set up: the next production deploy adds the tables itself.
+
+- [ ] **Export your iPhone contacts:** open **Contacts** → **Lists** (top left) → press and hold **All Contacts** → **Export** → save the file to Files (or AirDrop it to your Mac). On a Mac you can instead go to icloud.com/contacts → select all → **Export vCard**.
+- [ ] **Import:** on schuster.me, **People** → **Import contacts** → pick the file → untick anyone you don't want → **Import**. Doing it again later updates contacts instead of duplicating them.
+- [ ] **Invite or share:** **Invite** on a contact (admins), or **Send to…** next to any share link, short link or invite. Messages or Mail opens with everything filled in; you press send.
+- [ ] **Family directory:** **People** → **Family directory** → **Add myself**, and tick "Show me in the family directory".
+
+Short links, Admin, Add passkey, the theme switch and Sign out are now in the **menu** (☰) at the top right.
+
 ## Troubleshooting
 
 | Symptom | Cause → fix |
