@@ -1,4 +1,4 @@
-import { Library, ListMusic, LogOut, Shield, Upload } from "lucide-react";
+import { Library, Link2, ListMusic, LogOut, Shield, Upload } from "lucide-react";
 import { Link } from "next-view-transitions";
 import { signOut } from "@/auth";
 import { AddPasskeyButton } from "@/components/auth/add-passkey-button";
@@ -30,6 +30,13 @@ export function SiteHeader({ user }: { user: { name?: string | null; email?: str
             <ListMusic /> <span className="hidden sm:inline">Playlists</span>
           </Link>
         </Button>
+        {canContribute(user) ? (
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/links" aria-label="Short links" title="Short links">
+              <Link2 />
+            </Link>
+          </Button>
+        ) : null}
         {canContribute(user) ? (
           <Button asChild size="sm">
             <Link href="/upload">

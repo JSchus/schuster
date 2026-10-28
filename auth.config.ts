@@ -10,6 +10,8 @@ const PUBLIC_PATHS = [
   /^\/api\/invites\/[^/]+$/,
   /^\/s\/[^/]+$/,
   /^\/api\/s\/[^/]+\/download$/,
+  // Short links (public by design; each checks its own expiry and password).
+  /^\/go\/[^/]+$/,
 ];
 
 /**

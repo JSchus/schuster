@@ -69,6 +69,12 @@ Follow-ups: audit log (uploads, deletes, shares), a `kid` role with filtered she
 
 Follow-ups: drag-and-drop reordering, playlist cover art (a grid of the first four covers), "Play next" / queue from anywhere, crossfade, offline video.
 
+## Short links ✅
+
+- `schuster.me/go/…` links with a chosen or random word, optional expiry and password, visit counts, QR codes, change destination, turn off; short versions of share links.
+
+Follow-ups: email aliases on `relay.schuster.me` (Forward Email, SimpleLogin or addy.io via their API, or Amazon SES), a contact card at `/go/{name}`, per-day visit charts.
+
 ## Deferred / housekeeping
 
 - A daily Vercel Cron (Hobby allows daily) that deletes `pending` rows older than 3 days (the admin page can already clean them up by hand). The S3 lifecycle rule already aborts the parts.

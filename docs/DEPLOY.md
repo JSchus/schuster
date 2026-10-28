@@ -249,6 +249,14 @@ Nothing to set up: the next production deploy adds the tables itself.
 - [ ] **Offline:** on a playlist, *Keep offline*. On iPhone, add the site to the Home Screen first: iOS keeps an installed app's offline files much longer than Safari's.
 - [ ] **Share:** *Share link* on the playlist (members and admins), like sharing a single item.
 
+## 12. Short links
+
+Nothing to set up: the next production deploy adds the table itself.
+
+- [ ] Open the **link icon** in the header (members and admins), paste a web address, optionally choose a word, and press *Make short link & copy*.
+- [ ] *QR* shows a printable QR code. *Turn off* stops a link at once.
+- [ ] On any share link, *Short link* makes a `schuster.me/go/…` version.
+
 ## Troubleshooting
 
 | Symptom | Cause → fix |

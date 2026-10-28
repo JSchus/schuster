@@ -75,3 +75,35 @@ export function inviteUrl(origin: string, token: string) {
 export function shareUrl(origin: string, token: string) {
   return `${origin}/s/${token}`;
 }
+
+export const LINK_DAYS = [1, 7, 30, 365] as const;
+
+export const linkCreateSchema = z.object({
+  target: z.string().min(1).max(2048),
+  /** Optional custom word; normalized server-side. Omitted → random. */
+  slug: z.string().max(100).optional(),
+  note: z.string().trim().max(200).optional(),
+  /** null or omitted = never expires. */
+  days: z.union([z.literal(1), z.literal(7), z.literal(30), z.literal(365), z.null()]).optional(),
+  /** Exact expiry (ms), e.g. to match a share link's; at most about a year ahead. */
+  expiresAt: z
+    .number()
+    .int()
+    .refine((t) => t > Date.now() && t < Date.now() + 400 * 86_400_000, "Expiry must be within the next year")
+    .optional(),
+  password: z.string().min(4).max(200).optional(),
+});
+export type LinkCreateBody = z.input<typeof linkCreateSchema>;
+
+export const linkPatchSchema = z
+  .object({
+    target: z.string().min(1).max(2048),
+    note: z.string().trim().max(200).nullable(),
+    disabled: z.boolean(),
+  })
+  .partial()
+  .strict();
+
+export function shortUrl(origin: string, slug: string) {
+  return `${origin}/go/${slug}`;
+}

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { copyText, sendJson } from "@/lib/sharing/client";
-import { SHARE_DAYS, shareUrl, type ShareCreateBody } from "@/lib/sharing/protocol";
+import { SHARE_DAYS, shareUrl, shortUrl, type ShareCreateBody } from "@/lib/sharing/protocol";
 import type { ShareJson } from "@/lib/sharing/share-json";
 
 const fmt = (ms: number) =>
@@ -32,6 +32,8 @@ export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download 
   const [password, setPassword] = useState("");
   const [allowDownload, setAllowDownload] = useState(true);
   const [busy, setBusy] = useState(false);
+  /** Short links made in this visit, by share token. */
+  const [short, setShort] = useState<Record<string, string>>({});
 
   useEffect(() => {
     sendJson<ShareJson[]>(endpoint, "GET")
@@ -53,6 +55,25 @@ export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download 
       toast.error((err as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** A short /go/ version of a share link, expiring with it; copied right away. */
+  async function shorten(s: ShareJson) {
+    try {
+      let slug = short[s.token];
+      if (!slug) {
+        const link = await sendJson<{ slug: string }>("/api/links", "POST", {
+          target: shareUrl(location.origin, s.token),
+          expiresAt: s.expiresAt,
+          note: "Share link",
+        });
+        slug = link.slug;
+        setShort((m) => ({ ...m, [s.token]: slug! }));
+      }
+      if (await copyText(shortUrl(location.origin, slug))) toast.success(`Short link copied: schuster.me/go/${slug}`);
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 
@@ -130,6 +151,9 @@ export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download 
                 onClick={async () => (await copyText(shareUrl(location.origin, s.token))) && toast.success("Link copied")}
               >
                 <Copy /> Copy
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => shorten(s)} title="Make a short schuster.me/go/… version">
+                <Link2 /> {short[s.token] ? `/go/${short[s.token]}` : "Short link"}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => revoke(s.token)} aria-label="Turn this link off">
                 <X /> Turn off

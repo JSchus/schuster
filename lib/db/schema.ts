@@ -372,6 +372,32 @@ export const playlistAccess = pgTable(
   (t) => [primaryKey({ columns: [t.playlistId, t.userId] }), index("playlist_access_user_idx").on(t.userId)],
 );
 
+/* ------------------------------------------------------------------ */
+/* Short links                                                          */
+/* ------------------------------------------------------------------ */
+
+/** schuster.me/go/{slug} → target_url. Members and admins make them. */
+export const shortLinks = pgTable(
+  "short_links",
+  {
+    /** Lower-case [a-z0-9-], 2–64 characters (lib/links/rules.ts). */
+    slug: text("slug").primaryKey(),
+    targetUrl: text("target_url").notNull(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    note: text("note"),
+    /** scrypt hash (lib/sharing/tokens.ts), or null for no password. */
+    passwordHash: text("password_hash"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    clicks: integer("clicks").notNull().default(0),
+    lastClickedAt: timestamp("last_clicked_at", { withTimezone: true }),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("short_links_owner_idx").on(t.ownerId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
@@ -379,3 +405,4 @@ export type Invite = typeof invites.$inferSelect;
 export type Share = typeof shares.$inferSelect;
 export type Shelf = typeof shelves.$inferSelect;
 export type Playlist = typeof playlists.$inferSelect;
+export type ShortLink = typeof shortLinks.$inferSelect;
