@@ -1,12 +1,11 @@
-import { Library, Link2, ListMusic, LogOut, Shield, Upload } from "lucide-react";
+import { Library, ListMusic, Upload, Users } from "lucide-react";
 import { Link } from "next-view-transitions";
 import { signOut } from "@/auth";
-import { AddPasskeyButton } from "@/components/auth/add-passkey-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountMenu } from "@/components/account-menu";
 import { Button } from "@/components/ui/button";
 import { canContribute, type Role } from "@/lib/permissions";
 
-/** Sticky top bar: brand, shelves, upload, admin, passkey prompt, theme, sign out. */
+/** Sticky top bar: brand, shelves, playlists, people, upload, and a menu for the rest. */
 export function SiteHeader({ user }: { user: { name?: string | null; email?: string | null; role: Role } }) {
   return (
     <header
@@ -30,13 +29,11 @@ export function SiteHeader({ user }: { user: { name?: string | null; email?: str
             <ListMusic /> <span className="hidden sm:inline">Playlists</span>
           </Link>
         </Button>
-        {canContribute(user) ? (
-          <Button asChild variant="ghost" size="icon">
-            <Link href="/links" aria-label="Short links" title="Short links">
-              <Link2 />
-            </Link>
-          </Button>
-        ) : null}
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/contacts" aria-label="People">
+            <Users /> <span className="hidden sm:inline">People</span>
+          </Link>
+        </Button>
         {canContribute(user) ? (
           <Button asChild size="sm">
             <Link href="/upload">
@@ -44,25 +41,15 @@ export function SiteHeader({ user }: { user: { name?: string | null; email?: str
             </Link>
           </Button>
         ) : null}
-        {user.role === "admin" ? (
-          <Button asChild variant="ghost" size="icon">
-            <Link href="/admin" aria-label="Admin" title="Admin">
-              <Shield />
-            </Link>
-          </Button>
-        ) : null}
-        <AddPasskeyButton />
-        <ThemeToggle />
-        <form
-          action={async () => {
+        <AccountMenu
+          email={user.email}
+          showLinks={canContribute(user)}
+          showAdmin={user.role === "admin"}
+          signOut={async () => {
             "use server";
             await signOut({ redirectTo: "/login" });
           }}
-        >
-          <Button variant="ghost" size="icon" type="submit" aria-label={`Sign out ${user.email ?? ""}`}>
-            <LogOut />
-          </Button>
-        </form>
+        />
       </div>
     </header>
   );

@@ -107,3 +107,69 @@ export const linkPatchSchema = z
 export function shortUrl(origin: string, slug: string) {
   return `${origin}/go/${slug}`;
 }
+
+/* Contacts and the family directory */
+
+const birthday = z
+  .string()
+  .regex(/^(\d{4}|-)-\d{2}-\d{2}$/, "Birthday must look like 1985-04-12")
+  .nullable();
+const contactEmail = z.string().trim().toLowerCase().email().max(320);
+const contactPhone = z
+  .string()
+  .trim()
+  .max(40)
+  .transform((p) => {
+    const digits = p.replace(/[^\d]/g, "");
+    return digits ? (p.startsWith("+") ? `+${digits}` : digits) : "";
+  });
+
+export const contactSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  emails: z.array(contactEmail).max(10).default([]),
+  phones: z
+    .array(contactPhone)
+    .max(10)
+    .default([])
+    .transform((ps) => [...new Set(ps.filter(Boolean))]),
+  birthday: birthday.default(null),
+  org: z.string().trim().max(200).nullable().default(null),
+  note: z.string().trim().max(2000).nullable().default(null),
+});
+export type ContactBody = z.input<typeof contactSchema>;
+
+export const contactPatchSchema = contactSchema.partial().strict();
+
+export const IMPORT_BATCH = 500;
+
+/**
+ * Already parsed in the browser (lib/contacts/vcard.ts). Lenient on purpose:
+ * the route re-cleans each email and phone and drops bad ones, so one odd
+ * address can't reject a batch of 500.
+ */
+export const contactImportSchema = z.object({
+  contacts: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        emails: z.array(z.string().max(320)).max(10).default([]),
+        phones: z.array(z.string().max(40)).max(10).default([]),
+        birthday: z.string().max(40).nullable().default(null),
+        org: z.string().trim().max(200).nullable().default(null),
+        note: z.string().trim().max(2000).nullable().default(null),
+        uid: z.string().trim().max(200).nullable().default(null),
+      }),
+    )
+    .min(1)
+    .max(IMPORT_BATCH),
+});
+
+export const profileSchema = z.object({
+  displayName: z.string().trim().max(200).nullable(),
+  phone: z.string().trim().max(40).nullable(),
+  birthday,
+  address: z.string().trim().max(500).nullable(),
+  note: z.string().trim().max(500).nullable(),
+  listed: z.boolean(),
+});
+export type ProfileBody = z.input<typeof profileSchema>;

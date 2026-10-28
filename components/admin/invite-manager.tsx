@@ -4,6 +4,7 @@ import { Copy, Link2, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SendTo } from "@/components/contacts/send-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ROLE_LABELS } from "@/lib/permissions";
@@ -106,6 +107,12 @@ export function InviteManager({ invites }: { invites: InviteRow[] }) {
               >
                 <Copy /> Copy
               </Button>
+              <SendTo
+                message={() => ({
+                  subject: "You're invited to Schuster Media",
+                  body: `You're invited to Schuster Media, our family's books, movies, music and games. Join here: ${inviteUrl(location.origin, i.token)}`,
+                })}
+              />
               <Button variant="ghost" size="sm" onClick={() => revoke(i.id)}>
                 <X /> Turn off
               </Button>

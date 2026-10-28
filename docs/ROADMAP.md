@@ -75,6 +75,14 @@ Follow-ups: drag-and-drop reordering, playlist cover art (a grid of the first fo
 
 Follow-ups: email aliases on `relay.schuster.me` (Forward Email, SimpleLogin or addy.io via their API, or Amazon SES), a contact card at `/go/{name}`, per-day visit charts.
 
+## Contacts ✅
+
+- Import contacts from a phone's `.vcf` export (in the browser; photos skipped; re-imports don't duplicate). The address book is private to each person, admins included.
+- Text, email and **Send to…** through the person's own Messages or Mail app, for share links, short links and invites; admins can invite a contact in one step.
+- Family directory: each person opts in to list their own details. Upcoming birthdays.
+
+Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to send a link to several people at once, birthday reminders by email.
+
 ## Deferred / housekeeping
 
 - A daily Vercel Cron (Hobby allows daily) that deletes `pending` rows older than 3 days (the admin page can already clean them up by hand). The S3 lifecycle rule already aborts the parts.

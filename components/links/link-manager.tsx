@@ -3,6 +3,7 @@
 import { Copy, Link2, Loader2, Lock, Pencil, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SendTo } from "@/components/contacts/send-to";
 import { QrButton } from "@/components/links/qr-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,6 +163,12 @@ export function LinkManager({ initial, showOwner }: { initial: LinkJson[]; showO
                   <Button variant="ghost" size="sm" onClick={() => patch(l, { disabled: !l.disabled })}>
                     <Power /> {l.disabled ? "Turn on" : "Turn off"}
                   </Button>
+                  <SendTo
+                    message={() => ({
+                      subject: l.note || "A link for you",
+                      body: `${l.note ? `${l.note}: ` : ""}${shortUrl(location.origin, l.slug)}${l.hasPassword ? " (I'll send you the password)" : ""}`,
+                    })}
+                  />
                   <Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove(l)}>
                     <Trash2 /> Delete
                   </Button>
