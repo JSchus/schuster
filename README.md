@@ -94,6 +94,13 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **Public links:** the same share links as items (`shares.playlist_id`), made by members/admins who can edit the playlist. A link plays what its creator can see; per-song downloads are optional.
 - **Offline** (`lib/player/offline-audio.ts`): *Keep offline* downloads every song straight from S3 into the `audio` Cache API store (each song stored once, shared between playlists). The service worker serves `/offline-audio/{id}` with byte ranges (`public/sw-range.js`), which Safari needs for media. Kept playlists also play from the `/offline` page.
 
+### Short links
+
+- `schuster.me/go/{word}` redirects anywhere (`app/go/[slug]/page.tsx`, public). Members and admins make them on **/links** (the link icon in the header); viewers can't, so strangers can't use the site to disguise links.
+- A chosen word (normalized to `a-z0-9-`) or a random 6-character one without look-alike characters (`lib/links/rules.ts`). Destinations must be http(s), with no password in the URL and no `/go/` loops.
+- Optional expiry and password (scrypt; an httpOnly cookie remembers it for 12 h), visit counts, QR codes (made in the browser with `qrcode`), change destination, turn off or on.
+- **Short link** next to any share link makes a `/go/` version that expires with it.
+
 ## Project layout
 
 ```

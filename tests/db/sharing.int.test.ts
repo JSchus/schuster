@@ -19,6 +19,7 @@ describe.skipIf(!url)("sharing SQL (Postgres)", async () => {
   const people = await import("@/lib/db/people");
   const shelves = await import("@/lib/db/shelves");
   const playlists = await import("@/lib/db/playlists");
+  const links = await import("@/lib/db/links");
   const { inArray, like } = await import("drizzle-orm");
 
   const tag = `t${randomUUID().slice(0, 8)}`;
@@ -106,6 +107,22 @@ describe.skipIf(!url)("sharing SQL (Postgres)", async () => {
     expect(await playlists.getPlaylist(pl.id, as(u.friend, "viewer"))).toBeDefined(); // owner
     expect(await playlists.playlistsHolding(item.people, [pl.id])).toEqual([pl.id]);
     await playlists.deletePlaylist(pl.id);
+  });
+
+  it("keeps short-link words unique and counts visits atomically", async () => {
+    const slug = `${tag}-go`;
+    const base = { targetUrl: "https://example.com/", ownerId: u.owner, note: null, passwordHash: null, expiresAt: null };
+    expect(await links.createLink({ ...base, slug })).toBeDefined();
+    expect(await links.createLink({ ...base, slug })).toBeUndefined();
+    await Promise.all(Array.from({ length: 10 }, () => links.countClick(slug)));
+    const row = await links.getLink(slug);
+    expect(row?.clicks).toBe(10);
+    expect(row?.lastClickedAt).toBeInstanceOf(Date);
+    expect(links.isLive(row)).toBe(true);
+    await links.updateLink(slug, { disabledAt: new Date() });
+    expect(links.isLive(await links.getLink(slug))).toBe(false);
+    expect((await links.listLinks(as(u.stranger))).some((l) => l.slug === slug)).toBe(false);
+    expect((await links.listLinks(as(u.admin, "admin"))).some((l) => l.slug === slug)).toBe(true);
   });
 
   it("changes roles and reports storage per person", async () => {

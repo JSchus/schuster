@@ -2,7 +2,7 @@
   "name": "schuster-media",
   "version": "0.1.0",
   "private": true,
-  "description": "Personal media hub for family and friends \u2014 schuster.me",
+  "description": "Personal media hub for family and friends — schuster.me",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=20.18"
@@ -53,6 +53,7 @@
     "next-view-transitions": "0.3.5",
     "pdfjs-dist": "4.10.38",
     "postgres": "3.4.9",
+    "qrcode": "1.5.4",
     "react": "~19.2.9",
     "react-dom": "~19.2.9",
     "server-only": "^0.0.1",
@@ -64,6 +65,7 @@
     "@eslint/eslintrc": "^3.3.7",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.20.5",
+    "@types/qrcode": "1.5.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "aws-sdk-client-mock": "^4.1.0",
