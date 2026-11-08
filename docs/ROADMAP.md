@@ -83,6 +83,12 @@ Follow-ups: email aliases on `relay.schuster.me` (Forward Email, SimpleLogin or 
 
 Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to send a link to several people at once, birthday reminders by email.
 
+## Logan's Games ✅
+
+- A public arcade at `/logans-games`. First game: **Monster Packs** (Logan's design: 200 cards, 8 pack tiers, a 1 trillion coin reward for completing the index, a daily free pack, selling, battles).
+
+Follow-ups: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
+
 ## Deferred / housekeeping
 
 - A daily Vercel Cron (Hobby allows daily) that deletes `pending` rows older than 3 days (the admin page can already clean them up by hand). The S3 lifecycle rule already aborts the parts.

@@ -110,6 +110,17 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **Family directory** (`/family`): each account holder can list their own name, phone, birthday and address (`profiles`, off by default). Imported contacts never appear there.
 - Upcoming birthdays (next 30 days, Chicago time) show on both pages.
 
+### Logan's Games
+
+- **schuster.me/logans-games** is public (no sign-in) and kept off search engines. It lists the games in `lib/logans-games/games.ts`.
+- Each game is a folder of static files in `public/logans-games/{slug}/` with an `index.html`. `next.config.ts` rewrites `/logans-games/{slug}` to it, and the middleware skips those files, so the rest of the site still needs sign-in.
+- **Monster Packs** (`monster-packs/`):
+  - 200 monsters in 8 tiers, with packs from 50 to 5,000 coins;
+  - daily free pack, an index that pays 1 trillion coins when it's complete, selling extras, and battles;
+  - rules in `logic.js` (tested in `tests/logans-games/`), screens in `game.js`;
+  - progress is saved on each device.
+- **To add a game:** a new folder in `public/logans-games/`, plus one entry in `lib/logans-games/games.ts`.
+
 ## Project layout
 
 ```

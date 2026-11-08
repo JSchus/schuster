@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   /^\/api\/s\/[^/]+\/download$/,
   // Short links (public by design; each checks its own expiry and password).
   /^\/go\/[^/]+$/,
+  // Logan's public arcade (the games themselves are static files, outside the middleware).
+  /^\/logans-games\/?$/,
 ];
 
 /**
