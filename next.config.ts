@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    // Logan's games are static folders: /logans-games/monster-packs serves its index.html.
+    return [{ source: "/logans-games/:slug", destination: "/logans-games/:slug/index.html" }];
+  },
 };
 
 export default nextConfig;

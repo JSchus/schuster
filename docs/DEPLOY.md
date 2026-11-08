@@ -268,6 +268,14 @@ Nothing to set up: the next production deploy adds the tables itself.
 
 Short links, Admin, Add passkey, the theme switch and Sign out are now in the **menu** (☰) at the top right.
 
+## 14. Logan's Games
+
+Nothing to set up. After the deploy:
+
+- [ ] Open **https://schuster.me/logans-games** while signed out (for example in a private window) to check it's public, then play **Monster Packs**.
+- [ ] Send Logan the link. His progress is saved on whatever phone or computer he plays on.
+- [ ] **New game:** Logan describes it in a Claude session on this repository. It becomes a new folder in `public/logans-games/` plus one line in `lib/logans-games/games.ts`, delivered as a pull request you merge.
+
 ## Troubleshooting
 
 | Symptom | Cause → fix |
