@@ -6,8 +6,9 @@ import { createShare } from "@/lib/db/shares";
 import { env } from "@/lib/env";
 import { reverseToken } from "@/lib/mail/aliases";
 import { assertOutside, sendableAlias } from "@/lib/mail/alias-access";
-import { composeMultipart, fileEmail, SENDS_PER_DAY } from "@/lib/mail/compose";
+import { composeMultipart, fileEmail, openLabel, SENDS_PER_DAY } from "@/lib/mail/compose";
 import { getMailSender } from "@/lib/mail/sender";
+import { inlineKind } from "@/lib/sharing/open";
 import { sendEmailSchema, shareUrl } from "@/lib/sharing/protocol";
 import { checkDailyCap, senderName, siteFrom } from "@/lib/sharing/send";
 import { randomToken } from "@/lib/sharing/tokens";
@@ -45,8 +46,19 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
 
   const token = randomToken();
   const expiresAt = new Date(Date.now() + body.days * 86_400_000);
-  await createShare({ token, itemId: item.id, createdBy: user.id, expiresAt, passwordHash: null, allowDownload: body.allowDownload });
-  const mail = fileEmail({ senderName: name, title: item.title, note: body.note, url: shareUrl(new URL(req.url).origin, token), until: expiresAt, replies: !!aliasId });
+  // Books, games and plain files can only be downloaded from a share page, so
+  // "watch/listen only" is just for video, audio and images.
+  const inline = !!inlineKind(item);
+  await createShare({ token, itemId: item.id, createdBy: user.id, expiresAt, passwordHash: null, allowDownload: inline ? body.allowDownload : true });
+  const mail = fileEmail({
+    senderName: name,
+    title: item.title,
+    note: body.note,
+    url: shareUrl(new URL(req.url).origin, token),
+    until: expiresAt,
+    replies: !!aliasId,
+    button: openLabel(item.type, inline),
+  });
 
   const sender = getMailSender();
   const sent: string[] = [];

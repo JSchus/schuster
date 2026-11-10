@@ -79,8 +79,8 @@ const htmlOf = (raw: string) => {
   return Buffer.from(part.replace(/\r\n/g, ""), "base64").toString("utf8");
 };
 
-function item(visibility: MediaItem["visibility"], addedBy = PEOPLE.mom.id) {
-  db.items.set(ITEM, { id: ITEM, title: "Grandma's recipes", visibility, addedBy, status: "ready" } as MediaItem);
+function item(visibility: MediaItem["visibility"], addedBy = PEOPLE.mom.id, type: MediaItem["type"] = "video", mime = "video/mp4") {
+  db.items.set(ITEM, { id: ITEM, title: "Grandma's recipes", visibility, addedBy, status: "ready", type, mime } as MediaItem);
 }
 
 beforeEach(() => {
@@ -191,5 +191,34 @@ describe("email contacts a link", () => {
     as("kid");
     expect((await email.POST(post({ to: ["x@example.com"] }), ctx)).status).toBe(403);
     expect(sender.sent).toHaveLength(0);
+  });
+});
+
+describe("per media type", () => {
+  it("video can be watch-only; its email says Watch it", async () => {
+    await email.POST(post({ to: ["a@example.com"], allowDownload: false }), ctx);
+    expect(db.shares[0]!.allowDownload).toBe(false);
+    expect(textOf(sender.sent[0]!.raw)).toContain("Watch it: https://schuster.me/s/");
+  });
+
+  it("books, games and plain files are always downloadable from the link", async () => {
+    for (const [type, mime, label] of [
+      ["book", "application/epub+zip", "Download the book"],
+      ["game", "application/zip", "Download the game"],
+      ["file", "application/pdf", "Open"],
+    ] as const) {
+      db.shares.length = 0;
+      sender.sent.length = 0;
+      item("private", PEOPLE.mom.id, type, mime);
+      await email.POST(post({ to: ["a@example.com"], allowDownload: false }), ctx);
+      expect(db.shares[0]!.allowDownload).toBe(true);
+      expect(htmlOf(sender.sent[0]!.raw)).toContain(`>${label}</a>`);
+    }
+  });
+
+  it("member emails say Open for every type (they get the full reader or player)", async () => {
+    item("private", PEOPLE.mom.id, "book", "application/epub+zip");
+    await members.POST(post({ userIds: [PEOPLE.dad.id] }), ctx);
+    expect(htmlOf(sender.sent[0]!.raw)).toContain(">Open</a>");
   });
 });

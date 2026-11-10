@@ -51,3 +51,15 @@ describe("composeMultipart + fileEmail", () => {
     expect(raw.match(/Content-Type: text\/(plain|html)/g)).toEqual(["Content-Type: text/plain", "Content-Type: text/html"]);
   });
 });
+
+describe("openLabel", () => {
+  it("fits the button to what the link does", async () => {
+    const { openLabel } = await import("@/lib/mail/compose");
+    expect(openLabel("video", true)).toBe("Watch it");
+    expect(openLabel("audio", true)).toBe("Listen");
+    expect(openLabel("book", false)).toBe("Download the book");
+    expect(openLabel("game", false)).toBe("Download the game");
+    expect(openLabel("file", true)).toBe("Open");
+    expect(openLabel()).toBe("Open");
+  });
+});

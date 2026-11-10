@@ -69,6 +69,7 @@ export default async function ItemPage({ params }: Props) {
           aliases: aliases.filter((a) => isLive(a)).map((a) => ({ id: a.id, address: `${a.localPart}@${env().MAIL_DOMAIN}` })),
           me: user.id,
           myName: senderName(user),
+          kind: inlineKind(item),
         }
       : undefined;
   const holding = new Set(await shelvesHolding(item.id, shelves.map((s) => s.id)));
