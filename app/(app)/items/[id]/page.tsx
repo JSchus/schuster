@@ -3,6 +3,11 @@ import type { Metadata } from "next";
 import { Link } from "next-view-transitions";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
+import { listContacts } from "@/lib/db/contacts";
+import { listAliases } from "@/lib/db/mail";
+import { env } from "@/lib/env";
+import { isLive } from "@/lib/mail/aliases";
+import { senderName } from "@/lib/sharing/send";
 import { Cover } from "@/components/library/cover";
 import { libraryHref } from "@/components/library/filter-link";
 import { MakeCoverButton } from "@/components/library/make-cover-button";
@@ -50,11 +55,22 @@ export default async function ItemPage({ params }: Props) {
   if (!item) notFound();
   const m = item.metadata;
   const canEdit = mayEdit(user, item.addedBy);
-  const [shelves, people, access] = await Promise.all([
+  const [shelves, people, access, contacts, aliases] = await Promise.all([
     listShelves(user),
     canEdit ? listPeople() : Promise.resolve([]),
     canEdit && item.visibility === "people" ? getItemAccess(item.id) : Promise.resolve([]),
+    canEdit && canContribute(user) ? listContacts(user.id) : Promise.resolve([]),
+    canEdit && canContribute(user) ? listAliases(user.id) : Promise.resolve([]),
   ]);
+  const sendOptions =
+    canEdit && canContribute(user)
+      ? {
+          contacts: contacts.flatMap((c) => c.emails.map((email) => ({ name: c.name, email }))),
+          aliases: aliases.filter((a) => isLive(a)).map((a) => ({ id: a.id, address: `${a.localPart}@${env().MAIL_DOMAIN}` })),
+          me: user.id,
+          myName: senderName(user),
+        }
+      : undefined;
   const holding = new Set(await shelvesHolding(item.id, shelves.map((s) => s.id)));
   const onShelves = shelves.filter((s) => holding.has(s.id));
   const myPlaylists =
@@ -170,6 +186,7 @@ export default async function ItemPage({ params }: Props) {
             people={people}
             access={access}
             inline={!!inlineKind(item)}
+            send={sendOptions}
           />
 
           {item.description ? (

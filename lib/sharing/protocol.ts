@@ -211,3 +211,21 @@ export const aliasSendSchema = z.object({
   text: z.string().min(1, "Write a message").max(20_000),
 });
 export type AliasSendBody = z.input<typeof aliasSendSchema>;
+
+/* Sending a file on */
+
+export const SEND_DAYS = [1, 7, 30] as const;
+const note = z.string().trim().max(500).optional();
+
+export const sendMembersSchema = z.object({ userIds: z.array(z.string().min(1).max(100)).min(1).max(50), note });
+export type SendMembersBody = z.input<typeof sendMembersSchema>;
+
+export const sendEmailSchema = z.object({
+  to: z.array(z.string().trim().toLowerCase().email().max(320)).min(1, "Add at least one address").max(20, "Up to 20 people at a time"),
+  /** "site" (from "Name via Schuster Media", no replies) or an alias id. */
+  from: z.string().min(1).max(100).default("site"),
+  days: z.union([z.literal(1), z.literal(7), z.literal(30)]).default(7),
+  allowDownload: z.boolean().default(true),
+  note,
+});
+export type SendEmailBody = z.input<typeof sendEmailSchema>;

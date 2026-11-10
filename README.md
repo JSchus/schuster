@@ -87,6 +87,13 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **Admin page** (`/admin`): people with roles, upload counts and storage; invite links; approved emails; total storage; cleanup of uploads that never finished.
 - **Migrations** run automatically on Vercel **production** builds (`scripts/migrate.mjs`, before `next build`). Preview builds skip them, so an unmerged branch never changes the database.
 
+### Sending files
+
+- **Send** on a file's page (its uploader or an admin):
+  - **Family members:** they get access (a private file becomes "people"), an email from "Name via Schuster Media" `<noreply@m.schuster.me>` with an **Open** button, and the file appears on **/shared** ("Shared with me", ☰ menu). An optional note goes with it.
+  - **Email contacts:** pick from your address book or type addresses (up to 20). It makes one expiring share link (1/7/30 days, download on or off) and sends one email per person, from "Name via Schuster Media" (no replies) or from one of your aliases (replies come back, and it shows in that alias's Recent mail).
+- Emails carry a **link**, never the file: bytes still only flow from S3. At most 100 sends per person per day (`file_sends`, `lib/db/sends.ts`).
+
 ### Playlists
 
 - **Anyone signed in (viewers too)** can make playlists of audio items: *Playlists* in the header, or *Playlists* on any song's page. A playlist only lists songs, so each listener hears the ones they're allowed to see (`playlistTracksFor` in `lib/db/playlists.ts`). Visibility works like shelves; the owner or an admin edits it.

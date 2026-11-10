@@ -569,3 +569,29 @@ export const mailReplyAddresses = pgTable(
   (t) => [uniqueIndex("mail_reply_addresses_user_email_idx").on(t.userId, t.email)],
 );
 export type MailReplyAddress = typeof mailReplyAddresses.$inferSelect;
+
+/**
+ * Files sent on: to a member (feeds their "Shared with me") or emailed to an
+ * outside address with a share link. Also used for the daily send cap.
+ */
+export const fileSends = pgTable(
+  "file_sends",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => mediaItems.id, { onDelete: "cascade" }),
+    fromUser: text("from_user")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** A member it was sent to. */
+    toUser: text("to_user").references(() => users.id, { onDelete: "cascade" }),
+    /** An outside address it was emailed to (lower-case). */
+    toEmail: text("to_email"),
+    note: text("note"),
+    shareToken: text("share_token"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("file_sends_to_user_idx").on(t.toUser, t.createdAt), index("file_sends_from_user_idx").on(t.fromUser, t.createdAt)],
+);
+export type FileSend = typeof fileSends.$inferSelect;

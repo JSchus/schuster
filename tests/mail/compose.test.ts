@@ -35,3 +35,19 @@ describe("composeMessage", () => {
     expect(encodeSubject("  Plain\nsubject ")).toBe("Plain subject");
   });
 });
+
+describe("composeMultipart + fileEmail", () => {
+  it("builds a text + HTML email with the link and an escaped note", async () => {
+    const { composeMultipart, fileEmail } = await import("@/lib/mail/compose");
+    const mail = fileEmail({ senderName: "John", title: 'A "great" <film>', note: "<script>x</script>", url: "https://schuster.me/s/abc", until: new Date("2026-11-17T18:00:00Z"), replies: false });
+    expect(mail.subject).toBe('John shared “A "great" <film>” with you');
+    expect(mail.text).toContain("This link works until November 17.");
+    expect(mail.html).not.toContain("<script>");
+    expect(mail.html).toContain("&lt;film&gt;");
+    const raw = Buffer.from(composeMultipart({ from: "a@m.schuster.me", to: "b@x.com", domain: "m.schuster.me", ...mail })).toString("latin1");
+    const p = parseMessage(new Uint8Array(Buffer.from(raw, "latin1")));
+    expect(getHeader(p, "Content-Type")).toMatch(/^multipart\/alternative; boundary="sm-/);
+    expect(getHeader(p, "Subject")).toMatch(/^=\?UTF-8\?B\?/);
+    expect(raw.match(/Content-Type: text\/(plain|html)/g)).toEqual(["Content-Type: text/plain", "Content-Type: text/html"]);
+  });
+});
