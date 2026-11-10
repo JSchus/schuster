@@ -202,3 +202,12 @@ export const aliasPatchSchema = z
 
 export const replyAddressSchema = z.object({ email: z.string().trim().toLowerCase().email().max(320) });
 export type ReplyAddressBody = z.input<typeof replyAddressSchema>;
+
+/** "Email someone" from an alias. */
+export const aliasContactSchema = z.object({ email: z.string().trim().toLowerCase().email().max(320) });
+export const aliasSendSchema = z.object({
+  to: z.string().trim().toLowerCase().email().max(320),
+  subject: z.string().trim().min(1, "Add a subject").max(200),
+  text: z.string().min(1, "Write a message").max(20_000),
+});
+export type AliasSendBody = z.input<typeof aliasSendSchema>;

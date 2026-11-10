@@ -1,10 +1,11 @@
 "use client";
 
-import { Copy, Inbox, Loader2, Mail, Plus, Power, Trash2, Users, X } from "lucide-react";
+import { Copy, Inbox, Loader2, Mail, Plus, Power, Send, Trash2, Users, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { MailLogJson } from "@/app/api/mail/aliases/[id]/messages/route";
 import type { MailMessageJson } from "@/app/api/mail/messages/[id]/route";
+import { NewEmail } from "@/components/mail/new-email";
 import { personLabel } from "@/components/sharing/visibility-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,14 +27,15 @@ const OUTCOMES: Record<string, string> = {
   expired: "Blocked: expired",
   rejected: "Refused: not sent from your sign-in address or a confirmed reply address",
   failed: "Couldn't deliver",
+  sent: "Sent",
   bounced: "Bounced",
   complained: "Marked as spam",
 };
 
-type Props = { initial: AliasJson[]; people: Person[]; me: string; domain: string };
+type Props = { initial: AliasJson[]; people: Person[]; me: string; domain: string; accountEmail: string };
 
 /** Make and manage email aliases; read the last 14 days of mail through each. */
-export function AliasManager({ initial, people, me, domain }: Props) {
+export function AliasManager({ initial, people, me, domain, accountEmail }: Props) {
   const [aliases, setAliases] = useState(initial);
   const [name, setName] = useState("");
   const [label, setLabel] = useState("");
@@ -42,6 +44,9 @@ export function AliasManager({ initial, people, me, domain }: Props) {
   const [members, setMembers] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [openLog, setOpenLog] = useState<string | null>(null);
+  const [writing, setWriting] = useState<string | null>(null);
+  /** Bumped after a send so an open Recent mail list reloads. */
+  const [logVersion, setLogVersion] = useState(0);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -189,6 +194,11 @@ export function AliasManager({ initial, people, me, domain }: Props) {
                 <Button variant="ghost" size="sm" onClick={() => setOpenLog(openLog === a.id ? null : a.id)}>
                   <Inbox /> Recent mail
                 </Button>
+                {a.live ? (
+                  <Button variant="ghost" size="sm" onClick={() => setWriting(writing === a.id ? null : a.id)}>
+                    <Send /> Email someone
+                  </Button>
+                ) : null}
                 {a.mine ? (
                   <>
                     <Button variant="ghost" size="sm" onClick={() => patch(a, { active: !a.active })}>
@@ -200,7 +210,18 @@ export function AliasManager({ initial, people, me, domain }: Props) {
                   </>
                 ) : null}
               </div>
-              {openLog === a.id ? <RecentMail aliasId={a.id} /> : null}
+              {writing === a.id ? (
+                <NewEmail
+                  aliasId={a.id}
+                  address={a.address}
+                  accountEmail={accountEmail}
+                  onSent={() => {
+                    setLogVersion((v) => v + 1);
+                    setOpenLog(a.id);
+                  }}
+                />
+              ) : null}
+              {openLog === a.id ? <RecentMail key={logVersion} aliasId={a.id} /> : null}
             </li>
           ))}
         </ul>
@@ -252,7 +273,7 @@ function RecentMail({ aliasId }: { aliasId: string }) {
                 <Mail className="size-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate font-medium">{r.subject || "(no subject)"}</span>
                 <span className="text-xs text-muted-foreground">
-                  {r.direction === "in" ? `from ${r.from}` : `your reply to ${r.to}`} · {fmt(r.at)} · {OUTCOMES[r.outcome] ?? r.outcome}
+                  {r.direction === "in" ? `from ${r.from}` : `${r.outcome === "sent" ? "you wrote to" : "your reply to"} ${r.to}`} · {fmt(r.at)} · {OUTCOMES[r.outcome] ?? r.outcome}
                 </span>
               </button>
             </li>

@@ -27,7 +27,7 @@ export default async function MailPage() {
           alias starts getting spam, turn it off.
         </p>
       </div>
-      <AliasManager initial={aliases.map((a) => aliasJson(a, domain, user.id))} people={people} me={user.id} domain={domain} />
+      <AliasManager initial={aliases.map((a) => aliasJson(a, domain, user.id))} people={people} me={user.id} domain={domain} accountEmail={user.email ?? "your sign-in address"} />
       <ReplyAddresses
         initial={replyFrom.map((r) => ({ id: r.id, email: r.email, confirmed: !!r.confirmedAt }))}
         accountEmail={user.email ?? "your sign-in address"}

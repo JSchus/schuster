@@ -83,6 +83,7 @@ vi.mock("@/lib/db/mail", () => {
       return r && a && visible(u, a) ? r : undefined;
     },
     pruneLog: async () => undefined,
+    countSentSince: async (aliasId: string, since: Date) => db.log.filter((r) => r.aliasId === aliasId && r.outcome === "sent" && r.createdAt > since).length,
     MAX_REPLY_ADDRESSES: 3,
     listReplyAddresses: async (u: string) => db.replyFrom.filter((r) => r.userId === u),
     saveReplyAddress: async (userId: string, email: string, tokenHash: string, tokenExpiresAt: Date) => {
@@ -115,6 +116,8 @@ const one = await import("@/app/api/mail/aliases/[id]/route");
 const messages = await import("@/app/api/mail/aliases/[id]/messages/route");
 const message = await import("@/app/api/mail/messages/[id]/route");
 const replyFrom = await import("@/app/api/mail/reply-addresses/route");
+const contacts = await import("@/app/api/mail/aliases/[id]/contacts/route");
+const sendNew = await import("@/app/api/mail/aliases/[id]/send/route");
 const replyFromOne = await import("@/app/api/mail/reply-addresses/[id]/route");
 const { confirmReplyAddress } = await import("@/lib/db/mail");
 const { hashToken } = await import("@/lib/mail/confirm");
@@ -446,5 +449,62 @@ describe("reply-from addresses", () => {
     expect(await (await replyFrom.GET()).json()).toEqual([{ id, email: "mom.personal@gmail.com", confirmed: false }]);
     expect((await replyFromOne.DELETE(req("DELETE"), ctx(id))).status).toBe(204);
     expect(db.replyFrom).toHaveLength(0);
+  });
+});
+
+describe("email someone new from an alias", () => {
+  const post = (body: unknown) => new Request("https://schuster.me/x", { method: "POST", body: JSON.stringify(body) });
+
+  it("gives a hidden address; writing to it from your inbox sends as the alias", async () => {
+    const a = await makeAlias("mom", { name: "seller" });
+    const res = await contacts.POST(post({ email: "Buyer@Shop.example" }), ctx(a.id));
+    expect(res.status).toBe(200);
+    const { address } = await res.json();
+    expect(address).toMatch(/^r-[a-z2-7]{16}@m\.schuster\.me$/);
+    // Same contact → same address.
+    expect((await (await contacts.POST(post({ email: "buyer@shop.example" }), ctx(a.id))).json()).address).toBe(address);
+
+    await deliver(mail('"Mom" <mom@gmail.com>', address, "Is it still for sale?"), [address]);
+    expect(sender.sent).toHaveLength(1);
+    expect(sender.sent[0]).toMatchObject({ from: "seller@m.schuster.me", to: ["buyer@shop.example"] });
+    expect(sender.sent[0]!.raw).toMatch(/^Subject: Is it still for sale\?$/m);
+    expect(sender.sent[0]!.raw).not.toMatch(/mom@gmail/);
+  });
+
+  it("writes a new email on the site, logs it, and caps the day", async () => {
+    const a = await makeAlias("mom", { name: "seller" });
+    const res = await sendNew.POST(post({ to: "Buyer@Shop.example", subject: "Hello", text: "Still for sale." }), ctx(a.id));
+    expect(res.status).toBe(201);
+    expect(sender.sent[0]).toMatchObject({ from: "seller@m.schuster.me", to: ["buyer@shop.example"] });
+    expect(sender.sent[0]!.raw).toMatch(/^From: seller@m\.schuster\.me\r$/m);
+    expect(db.log.at(-1)).toMatchObject({ direction: "out", toAddr: "buyer@shop.example", subject: "Hello", outcome: "sent" });
+    expect(db.reverse.size).toBe(1); // their reply threads to the same contact
+    for (let i = 0; i < 29; i++) await sendNew.POST(post({ to: "b@x.example", subject: "s", text: "t" }), ctx(a.id));
+    expect((await sendNew.POST(post({ to: "b@x.example", subject: "s", text: "t" }), ctx(a.id))).status).toBe(429);
+  });
+
+  it("refuses empty mail, alias addresses, and aliases that are off", async () => {
+    const a = await makeAlias("mom", { name: "seller" });
+    expect((await sendNew.POST(post({ to: "b@x.example", subject: "", text: "t" }), ctx(a.id))).status).toBe(400);
+    expect((await sendNew.POST(post({ to: "other@m.schuster.me", subject: "s", text: "t" }), ctx(a.id))).status).toBe(400);
+    expect((await contacts.POST(post({ email: "other@m.schuster.me" }), ctx(a.id))).status).toBe(400);
+    await one.PATCH(req("PATCH", { active: false }), ctx(a.id));
+    expect((await sendNew.POST(post({ to: "b@x.example", subject: "s", text: "t" }), ctx(a.id))).status).toBe(400);
+    expect((await contacts.POST(post({ email: "b@x.example" }), ctx(a.id))).status).toBe(400);
+    expect(sender.sent).toHaveLength(0);
+  });
+
+  it("is only for the alias's own people", async () => {
+    const solo = await makeAlias("mom", { name: "solo" });
+    const fam = await makeAlias("mom", { name: "family", memberIds: [PEOPLE.dad.id] });
+    for (const who of ["dad", "boss"] as const) {
+      as(who);
+      expect((await sendNew.POST(post({ to: "b@x.example", subject: "s", text: "t" }), ctx(solo.id))).status).toBe(404);
+      expect((await contacts.POST(post({ email: "b@x.example" }), ctx(solo.id))).status).toBe(404);
+    }
+    as("dad");
+    expect((await sendNew.POST(post({ to: "coach@x.example", subject: "s", text: "t" }), ctx(fam.id))).status).toBe(201);
+    as("kid");
+    expect((await sendNew.POST(post({ to: "b@x.example", subject: "s", text: "t" }), ctx(fam.id))).status).toBe(403);
   });
 });

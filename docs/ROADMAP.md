@@ -92,9 +92,10 @@ Follow-ups: save progress to Logan's account so it follows him between devices; 
 ## Email aliases ✅
 
 - Addresses like `netflix@m.schuster.me` through Amazon SES, for members and admins: forwarded to your account email, **reply as the alias**, family group addresses, aliases that stop after 1, 7 or 30 days, turn off any alias, and the last 14 days of mail per alias.
+- Start a new email from an alias, in Gmail (via a hidden address) or on the site.
 - Spam and viruses are dropped; a spam complaint pauses the alias; `postmaster@` and `abuse@` reach the admins.
 
-Follow-ups: send a brand-new email (not a reply) from an alias; make an alias from the browser's share sheet; a weekly "blocked mail" summary; a custom MAIL FROM (`bounce.m.schuster.me`) for even better delivery.
+Follow-ups: attachments when writing on the site; make an alias from the browser's share sheet; a weekly "blocked mail" summary; a custom MAIL FROM (`bounce.m.schuster.me`) for even better delivery.
 
 ## Deferred / housekeeping
 

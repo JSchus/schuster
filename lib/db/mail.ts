@@ -175,6 +175,15 @@ export async function addLog(row: Omit<MailLogRow, "id" | "createdAt">) {
   await db().insert(mailLog).values(row);
 }
 
+/** New emails written on the site from this alias since `since` (for the daily cap). */
+export async function countSentSince(aliasId: string, since: Date): Promise<number> {
+  const [row] = await db()
+    .select({ n: sql<number>`count(*)::int` })
+    .from(mailLog)
+    .where(and(eq(mailLog.aliasId, aliasId), eq(mailLog.outcome, "sent"), gt(mailLog.createdAt, since)));
+  return row?.n ?? 0;
+}
+
 export async function listLog(aliasId: string): Promise<MailLogRow[]> {
   const since = new Date(Date.now() - LOG_DAYS * 86_400_000);
   return db()
