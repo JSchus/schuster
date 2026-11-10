@@ -75,6 +75,13 @@ export class MemoryStorageAdapter implements StorageAdapter {
     this.objects.delete(key);
   }
 
+  async getBytes(key: string, maxBytes: number) {
+    const obj = this.objects.get(key);
+    if (!obj) return null;
+    if (obj.body.length > maxBytes) throw new Error("Object too large");
+    return obj.body;
+  }
+
   async deleteMany(keys: string[]) {
     for (const k of keys) this.objects.delete(k);
   }

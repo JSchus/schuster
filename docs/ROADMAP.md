@@ -73,7 +73,7 @@ Follow-ups: drag-and-drop reordering, playlist cover art (a grid of the first fo
 
 - `schuster.me/go/…` links with a chosen or random word, optional expiry and password, visit counts, QR codes, change destination, turn off; short versions of share links.
 
-Follow-ups: email aliases on `relay.schuster.me` (Forward Email, SimpleLogin or addy.io via their API, or Amazon SES), a contact card at `/go/{name}`, per-day visit charts.
+Follow-ups: a contact card at `/go/{name}`, per-day visit charts.
 
 ## Contacts ✅
 
@@ -88,6 +88,13 @@ Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to 
 - A public arcade at `/logans-games`. First game: **Monster Packs** (Logan's design: 200 cards, 8 pack tiers, a 1 trillion coin reward for completing the index, a daily free pack, selling, battles).
 
 Follow-ups: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
+
+## Email aliases ✅
+
+- Addresses like `netflix@m.schuster.me` through Amazon SES, for members and admins: forwarded to your account email, **reply as the alias**, family group addresses, aliases that stop after 1, 7 or 30 days, turn off any alias, and the last 14 days of mail per alias.
+- Spam and viruses are dropped; a spam complaint pauses the alias; `postmaster@` and `abuse@` reach the admins.
+
+Follow-ups: send a brand-new email (not a reply) from an alias; make an alias from the browser's share sheet; a weekly "blocked mail" summary; a custom MAIL FROM (`bounce.m.schuster.me`) for even better delivery.
 
 ## Deferred / housekeeping
 

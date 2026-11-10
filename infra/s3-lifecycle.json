@@ -3,8 +3,22 @@
     {
       "ID": "abort-stale-multipart-uploads",
       "Status": "Enabled",
-      "Filter": { "Prefix": "" },
-      "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 3 }
+      "Filter": {
+        "Prefix": ""
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 3
+      }
+    },
+    {
+      "ID": "delete-inbound-mail-after-14-days",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "inbound/"
+      },
+      "Expiration": {
+        "Days": 14
+      }
     }
   ]
 }

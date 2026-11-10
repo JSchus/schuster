@@ -41,6 +41,12 @@ export interface StorageAdapter {
 
   delete(key: string): Promise<void>;
 
+  /**
+   * Read a small object into memory (inbound email only; never media).
+   * null if missing; throws if it's larger than `maxBytes`.
+   */
+  getBytes(key: string, maxBytes: number): Promise<Uint8Array | null>;
+
   /** Delete several keys (missing ones are ignored). */
   deleteMany(keys: string[]): Promise<void>;
 

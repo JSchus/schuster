@@ -276,6 +276,35 @@ Nothing to set up. After the deploy:
 - [ ] Send Logan the link. His progress is saved on whatever phone or computer he plays on.
 - [ ] **New game:** Logan describes it in a Claude session on this repository. It becomes a new folder in `public/logans-games/` plus one line in `lib/logans-games/games.ts`, delivered as a pull request you merge.
 
+## 15. Email aliases (Amazon SES, ≈30 min)
+
+Everything here is on **`m.schuster.me`**. Don't touch any record on `@` (the IONOS mailboxes). Already done: the `m.schuster.me` identity is *Verified* in SES (us-east-1) and production access is granted.
+
+**IONOS → Domains & SSL → schuster.me → DNS → Add record:**
+
+- [ ] **MX:** host `m`, points to `inbound-smtp.us-east-1.amazonaws.com`, priority `10`.
+- [ ] **TXT:** host `_dmarc.m`, value `v=DMARC1; p=none;`
+
+**AWS (top right, region *US East (N. Virginia)*):**
+
+- [ ] **SNS → Topics → Create topic:** type *Standard*, name `schuster-mail` → *Create*. Copy its **ARN** (starts `arn:aws:sns:us-east-1:`).
+- [ ] **Same topic → Create subscription:** protocol *HTTPS*, endpoint `https://schuster.me/api/mail/inbound` → *Create*. After the deploy it turns *Confirmed* by itself within a minute.
+- [ ] **S3 → schuster-media → Permissions → Bucket policy → Edit:** replace it with [`infra/s3-bucket-policy.json`](../infra/s3-bucket-policy.json), with `REPLACE_WITH_BUCKET_NAME` → `schuster-media` and both `REPLACE_WITH_ACCOUNT_ID` → your 12-digit account ID (top-right menu). It keeps the web-games rule and lets SES write only to `inbound/`.
+- [ ] **S3 → schuster-media → Management → Create lifecycle rule:** name `delete-inbound-mail`, prefix `inbound/`, *Expire current versions* after `14` days.
+- [ ] **IAM → Users → (the app's user) → its policy → Edit:** add the `SchusterMailSendAsAliases` statement from [`infra/iam-policy.json`](../infra/iam-policy.json).
+- [ ] **SES → Email receiving → Create rule set** `schuster` → *Set as active*. **Create rule:** recipient `m.schuster.me`; spam and virus scanning on; action **Deliver to S3 bucket**: bucket `schuster-media`, prefix `inbound/`, SNS topic `schuster-mail`.
+- [ ] **SES → Identities → m.schuster.me → Notifications → Edit:** *Bounce* and *Complaint* feedback → `schuster-mail`.
+
+**Vercel:**
+
+- [ ] **Settings → Environment Variables:** add `MAIL_INBOUND_TOPIC_ARN` = the ARN (Production) → *Save*, then **Deployments → ⋯ → Redeploy**.
+
+**Try it:**
+
+- [ ] ☰ → **Email aliases** → make one, e.g. `test`. From another address (Gmail), send to `test@m.schuster.me`: it arrives in your inbox *via Schuster Media*.
+- [ ] Hit **Reply** and send. The Gmail side sees it come from `test@m.schuster.me`, never your real address.
+- [ ] Back on the page, *Recent mail* shows both.
+
 ## Troubleshooting
 
 | Symptom | Cause → fix |
@@ -295,6 +324,9 @@ Nothing to set up. After the deploy:
 | Web game shows "AccessDenied" | The bucket policy from step 9 is missing, or Block Public Access still blocks bucket policies. |
 | Console game says the BIOS is missing | PS1 needs a BIOS file; the admin adds it on any PlayStation game's page. |
 | Library loads but covers are broken | S3 credentials or region are wrong in Vercel. Covers are presigned GETs. |
+| Alias mail never arrives | Check, in order: the `m` MX record; the SES rule set is *Active*; the SNS subscription is *Confirmed*; `MAIL_INBOUND_TOPIC_ARN` matches the topic. Vercel → *Logs* shows `[mail] …` lines. Turned-off, expired and spam mail is listed under *Recent mail*. |
+| A reply didn't go out | Replies are only sent from your account email (the one the alias forwards to), and only if your mail provider signs it (Gmail, iCloud and Outlook all do). |
+| An alias says "paused" | Someone marked mail from it as spam. Tap *Turn back on* if it was a mistake. |
 | A Vercel preview deploy can't sign in | Expected: passkeys and `AUTH_URL` are bound to schuster.me. Test on production. |
 
 ## What it costs
@@ -304,5 +336,6 @@ Nothing to set up. After the deploy:
 | Vercel | Hobby | $0. Media bytes never go through Vercel. |
 | Neon | Free | $0 (0.5 GB storage is plenty for metadata). |
 | Resend | Free | $0 up to 3,000 emails/month. |
+| Amazon SES | Pay as you go | $0.10 per 1,000 emails sent or received. A family's aliases cost cents a month. |
 | AWS S3 | Pay as you go | ≈ $0.023 per GB stored per month, plus ≈ $0.09 per GB downloaded (first 100 GB/month free). 200 GB of media ≈ $4.60/month in storage. |
 | Domain | — | your registrar's renewal fee |

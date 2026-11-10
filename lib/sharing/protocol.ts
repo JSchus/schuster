@@ -173,3 +173,29 @@ export const profileSchema = z.object({
   listed: z.boolean(),
 });
 export type ProfileBody = z.input<typeof profileSchema>;
+
+/* Email aliases */
+
+export const ALIAS_DAYS = [1, 7, 30] as const;
+
+export const aliasCreateSchema = z.object({
+  /** Your own word; omitted → a random friendly name. */
+  name: z.string().max(80).optional(),
+  label: z.string().trim().max(100).optional(),
+  /** Stops working after this many days; omitted/null = never. */
+  days: z.union([z.literal(1), z.literal(7), z.literal(30), z.null()]).optional(),
+  /** Group alias: these people get it too. */
+  memberIds: z.array(z.string().uuid()).max(50).optional(),
+});
+export type AliasCreateBody = z.input<typeof aliasCreateSchema>;
+
+export const aliasPatchSchema = z
+  .object({
+    label: z.string().trim().max(100).nullable(),
+    active: z.boolean(),
+    memberIds: z.array(z.string().uuid()).max(50),
+    /** Clear a pause after a complaint. */
+    unpause: z.literal(true),
+  })
+  .partial()
+  .strict();

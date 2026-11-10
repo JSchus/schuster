@@ -22,6 +22,14 @@
         "s3:GetBucketCors"
       ],
       "Resource": "arn:aws:s3:::REPLACE_WITH_BUCKET_NAME"
+    },
+    {
+      "Sid": "SchusterMailSendAsAliases",
+      "Effect": "Allow",
+      "Action": [
+        "ses:SendRawEmail"
+      ],
+      "Resource": "arn:aws:ses:us-east-1:*:identity/m.schuster.me"
     }
   ]
 }

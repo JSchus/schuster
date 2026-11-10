@@ -17,6 +17,12 @@ const schema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_ENDPOINT: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  /** Email aliases (Amazon SES). The domain is a subdomain: schuster.me's own mail stays with IONOS. */
+  MAIL_DOMAIN: z.string().default("m.schuster.me"),
+  /** ARN of the SNS topic SES notifies; the inbound route only trusts messages from it. */
+  MAIL_INBOUND_TOPIC_ARN: z.string().optional(),
+  /** "ses" (default) or "memory" (tests). */
+  MAIL_DRIVER: z.enum(["ses", "memory"]).default("ses"),
   S3_FORCE_PATH_STYLE: z
     .enum(["true", "false", ""])
     .default("false")
