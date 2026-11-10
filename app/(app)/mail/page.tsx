@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { AliasManager } from "@/components/mail/alias-manager";
-import { listAliases } from "@/lib/db/mail";
+import { ReplyAddresses } from "@/components/mail/reply-addresses";
+import { listAliases, listReplyAddresses } from "@/lib/db/mail";
 import { listPeople } from "@/lib/db/people";
 import { env } from "@/lib/env";
 import { aliasJson } from "@/lib/mail/alias-json";
@@ -15,7 +16,7 @@ export default async function MailPage() {
   const user = (await auth())?.user;
   if (!user || !canContribute(user)) notFound();
   const domain = env().MAIL_DOMAIN;
-  const [aliases, people] = await Promise.all([listAliases(user.id), listPeople()]);
+  const [aliases, people, replyFrom] = await Promise.all([listAliases(user.id), listPeople(), listReplyAddresses(user.id)]);
   return (
     <div className="mx-auto grid max-w-3xl gap-6">
       <div className="grid gap-1">
@@ -27,6 +28,10 @@ export default async function MailPage() {
         </p>
       </div>
       <AliasManager initial={aliases.map((a) => aliasJson(a, domain, user.id))} people={people} me={user.id} domain={domain} />
+      <ReplyAddresses
+        initial={replyFrom.map((r) => ({ id: r.id, email: r.email, confirmed: !!r.confirmedAt }))}
+        accountEmail={user.email ?? "your sign-in address"}
+      />
     </div>
   );
 }

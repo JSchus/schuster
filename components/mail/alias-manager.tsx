@@ -24,7 +24,7 @@ const OUTCOMES: Record<string, string> = {
   virus: "Blocked: virus",
   off: "Blocked: alias off",
   expired: "Blocked: expired",
-  rejected: "Refused: not sent from your inbox",
+  rejected: "Refused: not sent from your sign-in address or a confirmed reply address",
   failed: "Couldn't deliver",
   bounced: "Bounced",
   complained: "Marked as spam",

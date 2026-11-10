@@ -1,7 +1,7 @@
 import "server-only";
 import { and, arrayContains, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "./index";
-import { mailAliases, mailLog, mailReverse, users, type MailAlias, type MailLogRow } from "./schema";
+import { mailAliases, mailLog, mailReplyAddresses, mailReverse, users, type MailAlias, type MailLogRow, type MailReplyAddress } from "./schema";
 
 /*
  * Every alias query for the UI is scoped to its owner or (group aliases)
@@ -106,6 +106,63 @@ export async function emailsFor(userIds: string[]): Promise<string[]> {
 export async function adminEmails(): Promise<string[]> {
   const rows = await db().select({ email: users.email }).from(users).where(eq(users.role, "admin"));
   return rows.map((r) => r.email?.toLowerCase()).filter((e): e is string => !!e);
+}
+
+/* ------------------------------------------------------------------ */
+/* Extra reply-from addresses                                          */
+/* ------------------------------------------------------------------ */
+
+export const MAX_REPLY_ADDRESSES = 3;
+
+export async function listReplyAddresses(userId: string): Promise<MailReplyAddress[]> {
+  return db().select().from(mailReplyAddresses).where(eq(mailReplyAddresses.userId, userId)).orderBy(mailReplyAddresses.createdAt);
+}
+
+/** Add (or re-send for) an address. A confirmed address stays confirmed. */
+export async function saveReplyAddress(userId: string, email: string, tokenHash: string, tokenExpiresAt: Date): Promise<MailReplyAddress> {
+  const [row] = await db()
+    .insert(mailReplyAddresses)
+    .values({ userId, email, tokenHash, tokenExpiresAt })
+    .onConflictDoUpdate({
+      target: [mailReplyAddresses.userId, mailReplyAddresses.email],
+      set: { tokenHash, tokenExpiresAt },
+      setWhere: sql`${mailReplyAddresses.confirmedAt} is null`,
+    })
+    .returning();
+  if (row) return row;
+  const [existing] = await db()
+    .select()
+    .from(mailReplyAddresses)
+    .where(and(eq(mailReplyAddresses.userId, userId), eq(mailReplyAddresses.email, email)));
+  return existing!;
+}
+
+/** Confirm by token hash; undefined if unknown or expired. */
+export async function confirmReplyAddress(tokenHash: string, now = new Date()): Promise<MailReplyAddress | undefined> {
+  const [row] = await db()
+    .update(mailReplyAddresses)
+    .set({ confirmedAt: now, tokenHash: null, tokenExpiresAt: null })
+    .where(and(eq(mailReplyAddresses.tokenHash, tokenHash), gt(mailReplyAddresses.tokenExpiresAt, now)))
+    .returning();
+  return row;
+}
+
+export async function deleteReplyAddress(userId: string, id: string): Promise<boolean> {
+  const rows = await db()
+    .delete(mailReplyAddresses)
+    .where(and(eq(mailReplyAddresses.id, id), eq(mailReplyAddresses.userId, userId)))
+    .returning({ id: mailReplyAddresses.id });
+  return rows.length > 0;
+}
+
+/** Confirmed extra reply-from addresses for these user ids. */
+export async function replyEmailsFor(userIds: string[]): Promise<string[]> {
+  if (!userIds.length) return [];
+  const rows = await db()
+    .select({ email: mailReplyAddresses.email })
+    .from(mailReplyAddresses)
+    .where(and(inArray(mailReplyAddresses.userId, userIds), sql`${mailReplyAddresses.confirmedAt} is not null`));
+  return rows.map((r) => r.email);
 }
 
 /* ------------------------------------------------------------------ */

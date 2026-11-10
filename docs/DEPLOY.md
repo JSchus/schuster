@@ -325,7 +325,7 @@ Everything here is on **`m.schuster.me`**. Don't touch any record on `@` (the IO
 | Console game says the BIOS is missing | PS1 needs a BIOS file; the admin adds it on any PlayStation game's page. |
 | Library loads but covers are broken | S3 credentials or region are wrong in Vercel. Covers are presigned GETs. |
 | Alias mail never arrives | Check, in order: the `m` MX record; the SES rule set is *Active*; the SNS subscription is *Confirmed*; `MAIL_INBOUND_TOPIC_ARN` matches the topic. Vercel → *Logs* shows `[mail] …` lines. Turned-off, expired and spam mail is listed under *Recent mail*. |
-| A reply didn't go out | Replies are only sent from your account email (the one the alias forwards to), and only if your mail provider signs it (Gmail, iCloud and Outlook all do). |
+| A reply didn't go out | Replies are only sent from your sign-in email, or from an address you added and confirmed under *Email aliases → Reply from another address* (for example the Gmail your mail is forwarded to). *Recent mail* shows it as *Refused*. |
 | An alias says "paused" | Someone marked mail from it as spam. Tap *Turn back on* if it was a mistake. |
 | A Vercel preview deploy can't sign in | Expected: passkeys and `AUTH_URL` are bound to schuster.me. Test on production. |
 

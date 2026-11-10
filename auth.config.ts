@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   /^\/api\/s\/[^/]+\/download$/,
   // Short links (public by design; each checks its own expiry and password).
   /^\/go\/[^/]+$/,
+  // "Confirm replies from this address" links (each checks its own token).
+  /^\/mail-confirm\/[^/]+$/,
   // Logan's public arcade (the games themselves are static files, outside the middleware).
   /^\/logans-games\/?$/,
   // Amazon SNS posts "an email arrived" here; every request is signature-checked.

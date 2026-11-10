@@ -199,3 +199,6 @@ export const aliasPatchSchema = z
   })
   .partial()
   .strict();
+
+export const replyAddressSchema = z.object({ email: z.string().trim().toLowerCase().email().max(320) });
+export type ReplyAddressBody = z.input<typeof replyAddressSchema>;

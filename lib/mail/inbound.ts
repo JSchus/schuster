@@ -7,6 +7,7 @@ import {
   getAliasByLocal,
   getReverse,
   pruneLog,
+  replyEmailsFor,
   reverseTokenFor,
   updateAlias,
 } from "@/lib/db/mail";
@@ -157,8 +158,9 @@ async function reply(token: string, n: SesNotification, raw: Uint8Array, key: st
   const log = (outcome: string) =>
     addLog({ aliasId: alias.id, direction: "out", fromAddr: aliasAddress, toAddr: externalAddress, subject, s3Key: key, outcome });
 
-  // Only the alias's own people may send as it, and only with a passing SPF or DKIM check (no spoofing).
-  const allowed = await recipientsOf(alias);
+  // Only the alias's own people may send as it (from their account email or a
+  // confirmed extra address), and only with a passing SPF or DKIM check (no spoofing).
+  const allowed = [...(await recipientsOf(alias)), ...(await replyEmailsFor(peopleOf(alias)))];
   const authentic = passed(n.receipt!.spfVerdict) || passed(n.receipt!.dkimVerdict);
   if (!allowed.includes(sender) || !authentic || failed(n.receipt!.virusVerdict)) {
     await log("rejected");
@@ -202,8 +204,12 @@ async function handleFeedback(n: SesNotification, deps: Deps): Promise<Outcome[]
   return [{ recipient: n.mail.source, outcome }];
 }
 
-/** Who an alias delivers to: the owner, plus the members of a group. */
+/** The owner, plus the members of a group. */
+function peopleOf(alias: MailAlias): string[] {
+  return [...new Set(alias.kind === "group" ? [alias.ownerId, ...alias.memberIds] : [alias.ownerId])];
+}
+
+/** Who an alias delivers to: its people's account emails. */
 async function recipientsOf(alias: MailAlias): Promise<string[]> {
-  const ids = alias.kind === "group" ? [alias.ownerId, ...alias.memberIds] : [alias.ownerId];
-  return [...new Set(await emailsFor([...new Set(ids)]))];
+  return [...new Set(await emailsFor(peopleOf(alias)))];
 }
