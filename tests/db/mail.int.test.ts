@@ -71,4 +71,26 @@ describe.skipIf(!url)("mail SQL (Postgres)", async () => {
     await m.deleteAlias(a.id);
     expect(await db().select().from(mailLog).where(eq(mailLog.aliasId, a.id))).toEqual([]);
   });
+
+  it("confirms reply-from addresses once, by token, before expiry", async () => {
+    const r = await m.saveReplyAddress(u.member, `${tag}@gmail.test`, `${tag}-hash`, new Date(Date.now() + 3_600_000));
+    expect(r.confirmedAt).toBeNull();
+    expect(await m.replyEmailsFor([u.member])).toEqual([]);
+    // Re-sending replaces the token; the row stays one row.
+    await m.saveReplyAddress(u.member, `${tag}@gmail.test`, `${tag}-hash2`, new Date(Date.now() + 3_600_000));
+    expect(await m.listReplyAddresses(u.member)).toHaveLength(1);
+    expect(await m.confirmReplyAddress(`${tag}-hash`)).toBeUndefined();
+    expect(await m.confirmReplyAddress(`${tag}-hash2`)).toMatchObject({ email: `${tag}@gmail.test` });
+    expect(await m.confirmReplyAddress(`${tag}-hash2`)).toBeUndefined();
+    expect(await m.replyEmailsFor([u.member, u.owner])).toEqual([`${tag}@gmail.test`]);
+    // Saving again after confirming keeps it confirmed.
+    const again = await m.saveReplyAddress(u.member, `${tag}@gmail.test`, `${tag}-hash3`, new Date(Date.now() + 3_600_000));
+    expect(again.confirmedAt).not.toBeNull();
+    // Expired tokens don't confirm.
+    await m.saveReplyAddress(u.owner, `${tag}-old@gmail.test`, `${tag}-old`, new Date(Date.now() - 1000));
+    expect(await m.confirmReplyAddress(`${tag}-old`)).toBeUndefined();
+    // Only the owner can delete.
+    expect(await m.deleteReplyAddress(u.owner, r.id)).toBe(false);
+    expect(await m.deleteReplyAddress(u.member, r.id)).toBe(true);
+  });
 });

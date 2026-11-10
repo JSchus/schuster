@@ -36,6 +36,7 @@ const db = vi.hoisted(() => ({
   aliases: new Map<string, MailAlias>(),
   reverse: new Map<string, { aliasId: string; externalAddress: string }>(),
   log: [] as MailLogRow[],
+  replyFrom: [] as { id: string; userId: string; email: string; tokenHash: string | null; tokenExpiresAt: Date | null; confirmedAt: Date | null; createdAt: Date }[],
 }));
 vi.mock("@/lib/db/people", () => ({
   listPeople: async () => people.map((p) => ({ id: p.id, name: null, email: p.email })),
@@ -82,6 +83,25 @@ vi.mock("@/lib/db/mail", () => {
       return r && a && visible(u, a) ? r : undefined;
     },
     pruneLog: async () => undefined,
+    MAX_REPLY_ADDRESSES: 3,
+    listReplyAddresses: async (u: string) => db.replyFrom.filter((r) => r.userId === u),
+    saveReplyAddress: async (userId: string, email: string, tokenHash: string, tokenExpiresAt: Date) => {
+      let r = db.replyFrom.find((x) => x.userId === userId && x.email === email);
+      if (!r) db.replyFrom.push((r = { id: randomUUID(), userId, email, tokenHash, tokenExpiresAt, confirmedAt: null, createdAt: new Date() }));
+      else if (!r.confirmedAt) Object.assign(r, { tokenHash, tokenExpiresAt });
+      return r;
+    },
+    confirmReplyAddress: async (hash: string, now = new Date()) => {
+      const r = db.replyFrom.find((x) => x.tokenHash === hash && x.tokenExpiresAt! > now);
+      if (r) Object.assign(r, { confirmedAt: now, tokenHash: null, tokenExpiresAt: null });
+      return r;
+    },
+    deleteReplyAddress: async (u: string, id: string) => {
+      const i = db.replyFrom.findIndex((r) => r.id === id && r.userId === u);
+      if (i >= 0) db.replyFrom.splice(i, 1);
+      return i >= 0;
+    },
+    replyEmailsFor: async (ids: string[]) => db.replyFrom.filter((r) => ids.includes(r.userId) && r.confirmedAt).map((r) => r.email),
   };
 });
 
@@ -94,11 +114,15 @@ const list = await import("@/app/api/mail/aliases/route");
 const one = await import("@/app/api/mail/aliases/[id]/route");
 const messages = await import("@/app/api/mail/aliases/[id]/messages/route");
 const message = await import("@/app/api/mail/messages/[id]/route");
+const replyFrom = await import("@/app/api/mail/reply-addresses/route");
+const replyFromOne = await import("@/app/api/mail/reply-addresses/[id]/route");
+const { confirmReplyAddress } = await import("@/lib/db/mail");
+const { hashToken } = await import("@/lib/mail/confirm");
 
 let storage: InstanceType<typeof MemoryStorageAdapter>;
 let sender: InstanceType<typeof MemoryMailSender>;
 
-const as = (who: keyof typeof PEOPLE) => (session.current = { user: { id: PEOPLE[who].id, role: PEOPLE[who].role } });
+const as = (who: keyof typeof PEOPLE) => (session.current = { user: { id: PEOPLE[who].id, role: PEOPLE[who].role, email: PEOPLE[who].email } as Viewer });
 const req = (method: string, body?: unknown) =>
   new Request("https://schuster.me/api/mail/aliases", { method, body: body === undefined ? undefined : JSON.stringify(body) });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -169,6 +193,7 @@ beforeEach(() => {
   db.aliases.clear();
   db.reverse.clear();
   db.log.length = 0;
+  db.replyFrom.length = 0;
   storage = new MemoryStorageAdapter();
   setStorage(storage);
   sender = new MemoryMailSender();
@@ -340,5 +365,86 @@ describe("alias API", () => {
     const a = await makeAlias("mom", { name: "gone" });
     expect((await one.DELETE(req("DELETE"), ctx(a.id))).status).toBe(204);
     expect(db.aliases.size).toBe(0);
+  });
+});
+
+describe("reply-from addresses", () => {
+  const addReq = (email: string) => new Request("https://schuster.me/api/mail/reply-addresses", { method: "POST", body: JSON.stringify({ email }) });
+  /** The token from the confirmation email the site just sent. */
+  const tokenFromMail = () => /\/mail-confirm\/([A-Za-z0-9_-]+)/.exec(sender.sent.at(-1)!.raw)![1]!;
+
+  async function setUpReply() {
+    const a = await makeAlias("mom", { name: "seller" });
+    await deliver(mail("bob@buyer.example", a.address), [a.address]);
+    const replyTo = /^Reply-To: (r-[a-z2-7]+@m\.schuster\.me)/m.exec(sender.sent[0]!.raw)![1]!;
+    sender.sent.length = 0;
+    return replyTo;
+  }
+
+  it("emails a confirmation link, and the address only counts once it's opened", async () => {
+    const replyTo = await setUpReply();
+    as("mom");
+    const res = await replyFrom.POST(addReq("Mom.Personal@Gmail.com"));
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ email: "mom.personal@gmail.com", confirmed: false });
+    const confirm = sender.sent.at(-1)!;
+    expect(confirm).toMatchObject({ from: "noreply@m.schuster.me", to: ["mom.personal@gmail.com"] });
+    expect(confirm.raw).toContain("Subject: Confirm replies from this address");
+    expect(confirm.raw).toContain("mom@gmail.com asked");
+    expect(db.replyFrom[0]!.tokenHash).not.toBe(tokenFromMail()); // only the hash is stored
+    const token = tokenFromMail();
+    sender.sent.length = 0;
+
+    // Not confirmed yet: a reply from it is refused.
+    await deliver(mail("mom.personal@gmail.com", replyTo), [replyTo]);
+    expect(sender.sent).toHaveLength(0);
+
+    expect(await confirmReplyAddress(hashToken("wrong-token-wrong-token"))).toBeUndefined();
+    expect(await confirmReplyAddress(hashToken(token))).toMatchObject({ email: "mom.personal@gmail.com" });
+    expect(await confirmReplyAddress(hashToken(token))).toBeUndefined(); // single use
+
+    await deliver(mail('"Mom" <mom.personal@gmail.com>', replyTo), [replyTo]);
+    expect(sender.sent).toHaveLength(1);
+    expect(sender.sent[0]).toMatchObject({ from: "seller@m.schuster.me", to: ["bob@buyer.example"] });
+    expect(sender.sent[0]!.raw).not.toMatch(/mom\.personal/);
+  });
+
+  it("still needs SPF or DKIM, and other people's addresses don't count", async () => {
+    const replyTo = await setUpReply();
+    as("dad");
+    await replyFrom.POST(addReq("dad.personal@gmail.com"));
+    await confirmReplyAddress(hashToken(tokenFromMail()));
+    as("mom");
+    await replyFrom.POST(addReq("mom.personal@gmail.com"));
+    await confirmReplyAddress(hashToken(tokenFromMail()));
+    sender.sent.length = 0;
+    await deliver(mail("dad.personal@gmail.com", replyTo), [replyTo]);
+    await deliver(mail("mom.personal@gmail.com", replyTo), [replyTo], { spf: "FAIL", dkim: "FAIL" });
+    expect(sender.sent).toHaveLength(0);
+  });
+
+  it("refuses your own sign-in address, alias addresses, and more than three", async () => {
+    as("mom");
+    expect((await replyFrom.POST(addReq("mom@gmail.com"))).status).toBe(400);
+    expect((await replyFrom.POST(addReq("x@m.schuster.me"))).status).toBe(400);
+    expect((await replyFrom.POST(addReq("not an email"))).status).toBe(400);
+    for (const n of [1, 2, 3]) expect((await replyFrom.POST(addReq(`m${n}@x.example`))).status).toBe(201);
+    expect((await replyFrom.POST(addReq("m4@x.example"))).status).toBe(400);
+    expect((await replyFrom.POST(addReq("m1@x.example"))).status).toBe(201); // re-send is fine
+  });
+
+  it("shows and removes only your own, and viewers can't use it", async () => {
+    as("mom");
+    await replyFrom.POST(addReq("mom.personal@gmail.com"));
+    const id = db.replyFrom[0]!.id;
+    as("dad");
+    expect(await (await replyFrom.GET()).json()).toEqual([]);
+    expect((await replyFromOne.DELETE(req("DELETE"), ctx(id))).status).toBe(404);
+    as("kid");
+    expect((await replyFrom.POST(addReq("kid2@gmail.com"))).status).toBe(403);
+    as("mom");
+    expect(await (await replyFrom.GET()).json()).toEqual([{ id, email: "mom.personal@gmail.com", confirmed: false }]);
+    expect((await replyFromOne.DELETE(req("DELETE"), ctx(id))).status).toBe(204);
+    expect(db.replyFrom).toHaveLength(0);
   });
 });

@@ -546,3 +546,26 @@ export type Contact = typeof contacts.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
 export type MailAlias = typeof mailAliases.$inferSelect;
 export type MailLogRow = typeof mailLog.$inferSelect;
+
+/**
+ * Extra addresses a person may reply from (e.g. the Gmail their account
+ * email forwards to). Only used once confirmed by a link sent to that address.
+ */
+export const mailReplyAddresses = pgTable(
+  "mail_reply_addresses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Lower-case. */
+    email: text("email").notNull(),
+    /** SHA-256 of the confirmation token; null once confirmed. */
+    tokenHash: text("token_hash"),
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("mail_reply_addresses_user_email_idx").on(t.userId, t.email)],
+);
+export type MailReplyAddress = typeof mailReplyAddresses.$inferSelect;
