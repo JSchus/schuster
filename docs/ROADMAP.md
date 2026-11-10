@@ -97,6 +97,12 @@ Follow-ups: save progress to Logan's account so it follows him between devices; 
 
 Follow-ups: attachments when writing on the site; make an alias from the browser's share sheet; a weekly "blocked mail" summary; a custom MAIL FROM (`bounce.m.schuster.me`) for even better delivery.
 
+## Sending files ✅
+
+- **Send** on any file: to family members (access + email + **Shared with me**), or email a link to contacts from your address book, from the site or one of your aliases.
+
+Follow-ups: send a whole shelf or playlist; text a link to a contact's phone from the same panel.
+
 ## Deferred / housekeeping
 
 - A daily Vercel Cron (Hobby allows daily) that deletes `pending` rows older than 3 days (the admin page can already clean them up by hand). The S3 lifecycle rule already aborts the parts.

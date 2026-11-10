@@ -1,17 +1,18 @@
 "use client";
 
-import { Library, ListMusic, Loader2, Pencil, Share2, Trash2 } from "lucide-react";
+import { Library, ListMusic, Loader2, Pencil, Send, Share2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditItemForm, type EditableItem } from "@/components/items/edit-item-form";
+import { SendFile, type SendOptions } from "@/components/sharing/send-file";
 import { SharePanel } from "@/components/sharing/share-panel";
 import { ShelfPicker, type PickerShelf } from "@/components/shelves/shelf-picker";
 import { Button } from "@/components/ui/button";
 import type { Person } from "@/lib/db/people";
 import { sendJson } from "@/lib/sharing/client";
 
-type Panel = "edit" | "share" | "shelves" | "playlists" | null;
+type Panel = "edit" | "send" | "share" | "shelves" | "playlists" | null;
 
 type Props = {
   item: EditableItem;
@@ -25,10 +26,12 @@ type Props = {
   access: string[];
   /** Video, audio or image: the share page plays/shows it inline. */
   inline: boolean;
+  /** Uploader or admin: send to members / email contacts. */
+  send?: SendOptions;
 };
 
 /** Edit / Share / Shelves / Delete buttons, each opening its panel below. */
-export function ItemActions({ item, canEdit, shelves, playlists, people, access, inline }: Props) {
+export function ItemActions({ item, canEdit, shelves, playlists, people, access, inline, send }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<Panel>(null);
   const [deleting, setDeleting] = useState(false);
@@ -58,6 +61,11 @@ export function ItemActions({ item, canEdit, shelves, playlists, people, access,
             <Pencil /> Edit
           </Button>
         ) : null}
+        {canEdit && send ? (
+          <Button variant={open === "send" ? "secondary" : "outline"} size="sm" onClick={() => toggle("send")}>
+            <Send /> Send
+          </Button>
+        ) : null}
         {canEdit ? (
           <Button variant={open === "share" ? "secondary" : "outline"} size="sm" onClick={() => toggle("share")}>
             <Share2 /> Share link
@@ -80,6 +88,7 @@ export function ItemActions({ item, canEdit, shelves, playlists, people, access,
         ) : null}
       </div>
       {open === "edit" ? <EditItemForm item={item} people={people} access={access} onDone={() => setOpen(null)} /> : null}
+      {open === "send" && send ? <SendFile itemId={item.id} people={people} options={send} /> : null}
       {open === "share" ? <SharePanel endpoint={`/api/items/${item.id}/shares`} inline={inline} /> : null}
       {open === "shelves" && shelves ? <ShelfPicker itemId={item.id} shelves={shelves} /> : null}
       {open === "playlists" && playlists ? <ShelfPicker itemId={item.id} shelves={playlists} kind="playlist" /> : null}
