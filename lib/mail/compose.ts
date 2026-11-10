@@ -51,19 +51,29 @@ export function composeMultipart(opts: { from: string; to: string; subject: stri
 }
 
 /** "John shared “Grandma's recipes” with you": subject, text and HTML. */
-export function fileEmail(opts: { senderName: string; title: string; note?: string | null; url: string; until?: Date | null; replies: boolean }) {
+/** The email's button, to fit what the link does for this type. */
+export function openLabel(type?: string, inline?: boolean): string {
+  if (type === "video" && inline) return "Watch it";
+  if (type === "audio" && inline) return "Listen";
+  if (type === "book") return "Download the book";
+  if (type === "game") return "Download the game";
+  return "Open";
+}
+
+export function fileEmail(opts: { senderName: string; title: string; note?: string | null; url: string; until?: Date | null; replies: boolean; button?: string }) {
+  const button = opts.button ?? "Open";
   const subject = `${opts.senderName} shared “${opts.title}” with you`;
   const until = opts.until
     ? `This link works until ${opts.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/Chicago" })}.`
     : "";
   const footer = opts.replies ? "Sent with Schuster Media. You can reply to this email." : "Sent with Schuster Media. Replies to this email aren't received.";
   const note = opts.note?.trim();
-  const text = [`${opts.senderName} shared “${opts.title}” with you.`, "", ...(note ? [note, ""] : []), `Open it: ${opts.url}`, ...(until ? [until] : []), "", footer].join("\n");
+  const text = [`${opts.senderName} shared “${opts.title}” with you.`, "", ...(note ? [note, ""] : []), `${button}: ${opts.url}`, ...(until ? [until] : []), "", footer].join("\n");
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f6f6f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#18181b">
 <table role="presentation" width="100%" style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;padding:24px"><tr><td>
 <p style="margin:0 0 12px;font-size:16px"><strong>${escapeHtml(opts.senderName)}</strong> shared <strong>${escapeHtml(opts.title)}</strong> with you.</p>
 ${note ? `<p style="margin:0 0 16px;padding:12px;background:#f4f4f5;border-radius:8px;white-space:pre-line">${escapeHtml(note)}</p>` : ""}
-<p style="margin:0 0 16px"><a href="${escapeHtml(opts.url)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Open</a></p>
+<p style="margin:0 0 16px"><a href="${escapeHtml(opts.url)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">${escapeHtml(button)}</a></p>
 ${until ? `<p style="margin:0 0 8px;font-size:13px;color:#71717a">${escapeHtml(until)}</p>` : ""}
 <p style="margin:16px 0 0;font-size:12px;color:#a1a1aa">${escapeHtml(footer)}</p>
 </td></tr></table></body></html>`;

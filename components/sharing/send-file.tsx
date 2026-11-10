@@ -19,6 +19,8 @@ export type SendOptions = {
   aliases: { id: string; address: string }[];
   me: string;
   myName: string;
+  /** Video, audio or image play/show on the share page; anything else is a download. */
+  kind: "video" | "audio" | "image" | null;
 };
 
 /** Send a file to family members (email + "Shared with me"), or email a link to contacts. */
@@ -121,7 +123,7 @@ function ToContacts({ itemId, options }: { itemId: string; options: SendOptions 
     e.preventDefault();
     setBusy(true);
     try {
-      const body: SendEmailBody = { to, from, days, allowDownload, ...(note.trim() ? { note } : {}) };
+      const body: SendEmailBody = { to, from, days, allowDownload: options.kind ? allowDownload : true, ...(note.trim() ? { note } : {}) };
       const res = await sendJson<{ sent: number; failed: string[] }>(`/api/items/${itemId}/send/email`, "POST", body);
       toast.success(`Emailed a link to ${res.sent} ${res.sent === 1 ? "person" : "people"}.`);
       if (res.failed.length) toast.error(`Couldn't email ${res.failed.join(", ")}`);
@@ -206,16 +208,18 @@ function ToContacts({ itemId, options }: { itemId: string; options: SendOptions 
           </select>
         </label>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={allowDownload} onChange={(e) => setAllowDownload(e.target.checked)} />
-        Let them download it
-      </label>
+      {options.kind ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={allowDownload} onChange={(e) => setAllowDownload(e.target.checked)} />
+          Let them download it (otherwise they can only {options.kind === "video" ? "watch" : options.kind === "audio" ? "listen to" : "view"} it)
+        </label>
+      ) : null}
       <NoteField id={`note-c-${itemId}`} value={note} onChange={setNote} />
       <p className="text-xs text-muted-foreground">
         {from === "site"
           ? "Your email address isn't shown. They can't reply to this email."
           : "Sent from your alias: your real address stays private, and replies come to your inbox."}{" "}
-        They get a link, not an attachment.
+        {options.kind ? "They get a link, not an attachment." : "They get a link to download it (not an attachment)."}
       </p>
       <div>
         <Button type="submit" disabled={busy || !to.length}>
