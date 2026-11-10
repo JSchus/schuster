@@ -1,7 +1,7 @@
 import { HttpError, handle, parseId, parseJson, requireContributor } from "@/lib/api";
 import { getItemForEdit } from "@/lib/db/queries";
 import { activeSharesForItem, createShare } from "@/lib/db/shares";
-import { shareCreateSchema } from "@/lib/sharing/protocol";
+import { shareCreateSchema, shareExpiry } from "@/lib/sharing/protocol";
 import { shareJson } from "@/lib/sharing/share-json";
 import { hashPassword, randomToken } from "@/lib/sharing/tokens";
 
@@ -30,7 +30,7 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
     token: randomToken(),
     itemId: item.id,
     createdBy: user.id,
-    expiresAt: new Date(Date.now() + body.days * 86_400_000),
+    expiresAt: shareExpiry(body.days),
     passwordHash: body.password ? await hashPassword(body.password) : null,
     allowDownload: body.allowDownload,
   });

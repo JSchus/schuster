@@ -25,8 +25,26 @@ export type ItemPatchBody = z.input<typeof itemPatchSchema>;
 
 export const SHARE_DAYS = [1, 7, 30] as const;
 
+/**
+ * "Forever" share links are stored with this far-future expiry (no schema
+ * change); they still stop working the moment they're turned off.
+ */
+export const FOREVER = new Date(Date.UTC(9999, 11, 31));
+export function isForever(expiresAt: Date | number): boolean {
+  return new Date(expiresAt).getUTCFullYear() >= 9000;
+}
+/** null = forever. */
+export function shareExpiry(days: number | null, now = Date.now()): Date {
+  return days === null ? FOREVER : new Date(now + days * 86_400_000);
+}
+/** "1 day", "7 days", "Forever". */
+export function daysLabel(days: number | null): string {
+  return days === null ? "Forever" : days === 1 ? "1 day" : `${days} days`;
+}
+
 export const shareCreateSchema = z.object({
-  days: z.union([z.literal(1), z.literal(7), z.literal(30)]),
+  /** null = forever. */
+  days: z.union([z.literal(1), z.literal(7), z.literal(30), z.null()]),
   password: z.string().min(4).max(200).optional(),
   allowDownload: z.boolean().default(true),
 });
@@ -224,7 +242,8 @@ export const sendEmailSchema = z.object({
   to: z.array(z.string().trim().toLowerCase().email().max(320)).min(1, "Add at least one address").max(20, "Up to 20 people at a time"),
   /** "site" (from "Name via Schuster Media", no replies) or an alias id. */
   from: z.string().min(1).max(100).default("site"),
-  days: z.union([z.literal(1), z.literal(7), z.literal(30)]).default(7),
+  /** null = forever. */
+  days: z.union([z.literal(1), z.literal(7), z.literal(30), z.null()]).default(7),
   allowDownload: z.boolean().default(true),
   note,
 });

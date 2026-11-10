@@ -222,3 +222,12 @@ describe("per media type", () => {
     expect(htmlOf(sender.sent[0]!.raw)).toContain(">Open</a>");
   });
 });
+
+describe("forever links", () => {
+  it("days: null makes a link that doesn't expire, and the email doesn't mention a date", async () => {
+    const res = await email.POST(post({ to: ["a@example.com"], days: null }), ctx);
+    expect(res.status).toBe(201);
+    expect(db.shares[0]!.expiresAt.getUTCFullYear()).toBe(9999);
+    expect(textOf(sender.sent[0]!.raw)).not.toMatch(/works until/);
+  });
+});

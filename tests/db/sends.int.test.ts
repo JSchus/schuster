@@ -60,4 +60,16 @@ describe.skipIf(!url)("file sends SQL (Postgres)", async () => {
     expect(await s.countSendsSince(u.owner, new Date(Date.now() - 60_000))).toBe(3);
     expect(await s.countSendsSince(u.mom, new Date(Date.now() - 60_000))).toBe(0);
   });
+
+  it("counts how often each outside address was emailed, most first", async () => {
+    const row = (toEmail: string) => ({ itemId: item.a, fromUser: u.owner, toUser: null, toEmail, note: null, shareToken: null });
+    await s.addSends([row(`${tag}-a@x.test`), row(`${tag}-b@x.test`), row(`${tag}-b@x.test`)]);
+    const counts = await s.sendCountsByEmail(u.owner);
+    expect(counts.map((c) => [c.email, c.count])).toEqual([
+      [`${tag}-b@x.test`, 2],
+      [`${tag}-a@x.test`, 1],
+    ]);
+    expect(counts[0]!.last).toBeInstanceOf(Date);
+    expect(await s.sendCountsByEmail(u.mom)).toEqual([]);
+  });
 });

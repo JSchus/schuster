@@ -91,7 +91,7 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 
 - **Send** on a file's page (its uploader or an admin):
   - **Family members:** they get access (a private file becomes "people"), an email from "Name via Schuster Media" `<noreply@m.schuster.me>` with an **Open** button, and the file appears on **/shared** ("Shared with me", ☰ menu). An optional note goes with it.
-  - **Email contacts:** pick from your address book or type addresses (up to 20). It makes one expiring share link (1/7/30 days, download on or off) and sends one email per person, from "Name via Schuster Media" (no replies) or from one of your aliases (replies come back, and it shows in that alias's Recent mail).
+  - **Email contacts:** tick people in your address book (the ones you send to most are listed first, `lib/sharing/recipients.ts`) or add an address (up to 20 per send). It makes one share link (1, 7 or 30 days, or forever; download on or off) and sends one email per person, from "Name via Schuster Media" (no replies) or from one of your aliases (replies come back, and it shows in that alias's Recent mail).
 - Emails carry a **link**, never the file: bytes still only flow from S3. At most 100 sends per person per day (`file_sends`, `lib/db/sends.ts`).
 
 ### Playlists
@@ -106,6 +106,7 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - `schuster.me/go/{word}` redirects anywhere (`app/go/[slug]/page.tsx`, public). Members and admins make them on **/links** (the link icon in the header); viewers can't, so strangers can't use the site to disguise links.
 - A chosen word (normalized to `a-z0-9-`) or a random 6-character one without look-alike characters (`lib/links/rules.ts`). Destinations must be http(s), with no password in the URL and no `/go/` loops.
 - Optional expiry and password (scrypt; an httpOnly cookie remembers it for 12 h), visit counts, QR codes (made in the browser with `qrcode`), change destination, turn off or on.
+- Share links can also be **Forever** (stored as a year-9999 expiry, `FOREVER` in `lib/sharing/protocol.ts`); they still stop working when turned off.
 - **Short link** next to any share link makes a `/go/` version that expires with it.
 
 ### Contacts and family directory

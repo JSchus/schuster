@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm";
 import type { Viewer } from "@/lib/permissions";
 import { db } from "./index";
 import { visibleTo } from "./queries";
@@ -32,4 +32,17 @@ export async function sharedWithMe(viewer: Viewer): Promise<SharedWithMe[]> {
     .limit(300);
   const seen = new Set<string>();
   return rows.filter((r) => !seen.has(r.item.id) && seen.add(r.item.id));
+}
+
+/** How often (and how recently) this person emailed files to each outside address. */
+export async function sendCountsByEmail(userId: string): Promise<{ email: string; count: number; last: Date }[]> {
+  const count = sql<number>`count(*)::int`;
+  const last = sql<Date>`max(${fileSends.createdAt})`.mapWith((v) => new Date(v));
+  return db()
+    .select({ email: sql<string>`${fileSends.toEmail}`, count, last })
+    .from(fileSends)
+    .where(and(eq(fileSends.fromUser, userId), isNotNull(fileSends.toEmail)))
+    .groupBy(fileSends.toEmail)
+    .orderBy(desc(count), desc(last))
+    .limit(200);
 }

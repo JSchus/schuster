@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { listContacts } from "@/lib/db/contacts";
 import { listAliases } from "@/lib/db/mail";
+import { sendCountsByEmail } from "@/lib/db/sends";
+import { rankRecipients } from "@/lib/sharing/recipients";
 import { env } from "@/lib/env";
 import { isLive } from "@/lib/mail/aliases";
 import { senderName } from "@/lib/sharing/send";
@@ -62,10 +64,11 @@ export default async function ItemPage({ params }: Props) {
     canEdit && canContribute(user) ? listContacts(user.id) : Promise.resolve([]),
     canEdit && canContribute(user) ? listAliases(user.id) : Promise.resolve([]),
   ]);
+  const sendCounts = canEdit && canContribute(user) ? await sendCountsByEmail(user.id) : [];
   const sendOptions =
     canEdit && canContribute(user)
       ? {
-          contacts: contacts.flatMap((c) => c.emails.map((email) => ({ name: c.name, email }))),
+          contacts: rankRecipients(contacts, sendCounts),
           aliases: aliases.filter((a) => isLive(a)).map((a) => ({ id: a.id, address: `${a.localPart}@${env().MAIL_DOMAIN}` })),
           me: user.id,
           myName: senderName(user),

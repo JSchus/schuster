@@ -9,7 +9,7 @@ import { assertOutside, sendableAlias } from "@/lib/mail/alias-access";
 import { composeMultipart, fileEmail, openLabel, SENDS_PER_DAY } from "@/lib/mail/compose";
 import { getMailSender } from "@/lib/mail/sender";
 import { inlineKind } from "@/lib/sharing/open";
-import { sendEmailSchema, shareUrl } from "@/lib/sharing/protocol";
+import { isForever, sendEmailSchema, shareExpiry, shareUrl } from "@/lib/sharing/protocol";
 import { checkDailyCap, senderName, siteFrom } from "@/lib/sharing/send";
 import { randomToken } from "@/lib/sharing/tokens";
 
@@ -45,7 +45,7 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
   }
 
   const token = randomToken();
-  const expiresAt = new Date(Date.now() + body.days * 86_400_000);
+  const expiresAt = shareExpiry(body.days);
   // Books, games and plain files can only be downloaded from a share page, so
   // "watch/listen only" is just for video, audio and images.
   const inline = !!inlineKind(item);
@@ -55,7 +55,7 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
     title: item.title,
     note: body.note,
     url: shareUrl(new URL(req.url).origin, token),
-    until: expiresAt,
+    until: isForever(expiresAt) ? null : expiresAt,
     replies: !!aliasId,
     button: openLabel(item.type, inline),
   });
