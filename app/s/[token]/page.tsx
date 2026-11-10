@@ -14,6 +14,7 @@ import { countShareView, getShare } from "@/lib/db/shares";
 import { env } from "@/lib/env";
 import { toPlayerTracks } from "@/lib/player/playlist-tracks";
 import { inlineKind, resolveShare, sharedPlaylistTracks, shareUrlLifetime } from "@/lib/sharing/open";
+import { isForever } from "@/lib/sharing/protocol";
 import { isTokenShape, shareCookieName, shareUnlockValue, verifyPassword } from "@/lib/sharing/tokens";
 import { getStorage } from "@/lib/storage";
 import { formatBytes } from "@/lib/utils";
@@ -178,8 +179,10 @@ export default async function SharePage({ params, searchParams }: Props) {
 function ShareFooter({ expiresAt }: { expiresAt: Date }) {
   return (
     <p className="text-center text-xs text-muted-foreground">
-      Shared from Schuster Media · link works until{" "}
-      {expiresAt.toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "America/Chicago" })}
+      Shared from Schuster Media ·{" "}
+      {isForever(expiresAt)
+        ? "this link doesn't expire"
+        : `link works until ${expiresAt.toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "America/Chicago" })}`}
     </p>
   );
 }

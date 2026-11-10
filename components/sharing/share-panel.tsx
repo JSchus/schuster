@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { copyText, sendJson } from "@/lib/sharing/client";
-import { SHARE_DAYS, shareUrl, shortUrl, type ShareCreateBody } from "@/lib/sharing/protocol";
+import { daysLabel, isForever, SHARE_DAYS, shareUrl, shortUrl, type ShareCreateBody } from "@/lib/sharing/protocol";
 import type { ShareJson } from "@/lib/sharing/share-json";
 
 const fmt = (ms: number) =>
@@ -66,7 +66,8 @@ export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download 
       if (!slug) {
         const link = await sendJson<{ slug: string }>("/api/links", "POST", {
           target: shareUrl(location.origin, s.token),
-          expiresAt: s.expiresAt,
+          // A forever share gets a short link that never expires either.
+          ...(isForever(s.expiresAt) ? {} : { expiresAt: s.expiresAt }),
           note: "Share link",
         });
         slug = link.slug;
@@ -98,13 +99,13 @@ export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download 
           <label className="grid gap-1.5 text-sm">
             <span className="font-medium">Works for</span>
             <select
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value) as ShareCreateBody["days"])}
+              value={days ?? "forever"}
+              onChange={(e) => setDays(e.target.value === "forever" ? null : (Number(e.target.value) as ShareCreateBody["days"]))}
               className="h-9 rounded-md border bg-background px-2"
             >
-              {SHARE_DAYS.map((d) => (
-                <option key={d} value={d}>
-                  {d === 1 ? "1 day" : `${d} days`}
+              {[...SHARE_DAYS, null].map((d) => (
+                <option key={d ?? "forever"} value={d ?? "forever"}>
+                  {daysLabel(d)}
                 </option>
               ))}
             </select>
@@ -143,7 +144,7 @@ export function SharePanel({ endpoint, inline, downloadLabel = "Show a Download 
             <li key={s.token} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
               {s.hasPassword ? <Lock className="size-4 text-muted-foreground" aria-label="Password protected" /> : null}
               <span className="min-w-0 flex-1 truncate">
-                Until {fmt(s.expiresAt)} · {s.views} {s.views === 1 ? "view" : "views"}
+                {isForever(s.expiresAt) ? "No expiry" : `Until ${fmt(s.expiresAt)}`} · {s.views} {s.views === 1 ? "view" : "views"}
                 {inline && !s.allowDownload ? " · no download" : ""}
               </span>
               <Button
