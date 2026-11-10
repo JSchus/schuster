@@ -256,5 +256,20 @@ if (env.AUTH_RESEND_KEY) {
   });
 }
 
+// Email aliases (Amazon SES) live on a subdomain; schuster.me's own mail stays at IONOS.
+await section("Email aliases", async () => {
+  const domain = env.MAIL_DOMAIN || "m.schuster.me";
+  if (domain === appHost) fail(`MAIL_DOMAIN is ${domain}`, "Use a subdomain like m.schuster.me so the IONOS mailboxes are never touched.");
+  if (env.MAIL_INBOUND_TOPIC_ARN) ok("MAIL_INBOUND_TOPIC_ARN set");
+  else warn("MAIL_INBOUND_TOPIC_ARN not set", "Email aliases won't receive mail until it's set (DEPLOY.md step 15).");
+  try {
+    const mx = (await resolveMx(domain)).map((r) => r.exchange.toLowerCase());
+    if (mx.some((h) => /^inbound-smtp\.[a-z0-9-]+\.amazonaws\.com$/.test(h))) ok(`${domain} MX → ${mx.join(", ")}`);
+    else warn(`${domain} MX → ${mx.join(", ")}`, "Point it at inbound-smtp.us-east-1.amazonaws.com (DEPLOY.md step 15).");
+  } catch (err) {
+    warn(`No MX on ${domain} yet (${err.code ?? err.message})`, "Add MX inbound-smtp.us-east-1.amazonaws.com at IONOS (DEPLOY.md step 15).");
+  }
+});
+
 console.log(failed ? `❌ ${failed} check(s) failed.` : "✅ All checks passed. Ready to deploy.");
 process.exit(failed ? 1 : 0);

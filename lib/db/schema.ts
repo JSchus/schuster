@@ -462,6 +462,78 @@ export const profiles = pgTable("profiles", {
     .$onUpdate(() => new Date()),
 });
 
+/* ------------------------------------------------------------------ */
+/* Email aliases (m.schuster.me via Amazon SES)                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * alias@m.schuster.me → its owner's account email (personal), or every
+ * member's (group). Members and admins make them.
+ */
+export const mailAliases = pgTable(
+  "mail_aliases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** The part before @, lower-case (lib/mail/aliases.ts). */
+    localPart: text("local_part").notNull().unique(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label"),
+    /** "personal" | "group" */
+    kind: text("kind").notNull().default("personal"),
+    /** Group aliases: user ids who receive it (the owner is always included). */
+    memberIds: text("member_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    active: boolean("active").notNull().default(true),
+    /** Set when SES reports a complaint; the alias stops forwarding. */
+    pausedReason: text("paused_reason"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    received: integer("received").notNull().default(0),
+    blocked: integer("blocked").notNull().default(0),
+    lastReceivedAt: timestamp("last_received_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("mail_aliases_owner_idx").on(t.ownerId)],
+);
+
+/** r-{token}@m.schuster.me: replying to it reaches `externalAddress` from the alias. */
+export const mailReverse = pgTable(
+  "mail_reverse",
+  {
+    token: text("token").primaryKey(),
+    aliasId: uuid("alias_id")
+      .notNull()
+      .references(() => mailAliases.id, { onDelete: "cascade" }),
+    externalAddress: text("external_address").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("mail_reverse_alias_addr_idx").on(t.aliasId, t.externalAddress)],
+);
+
+/** What happened to each message (kept 14 days, like the raw copies in S3). */
+export const mailLog = pgTable(
+  "mail_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    aliasId: uuid("alias_id")
+      .notNull()
+      .references(() => mailAliases.id, { onDelete: "cascade" }),
+    /** "in" (forwarded to us) | "out" (our masked reply) */
+    direction: text("direction").notNull(),
+    fromAddr: text("from_addr").notNull(),
+    toAddr: text("to_addr").notNull(),
+    subject: text("subject"),
+    s3Key: text("s3_key"),
+    /** delivered | spam | virus | off | expired | rejected | failed | bounced | complained */
+    outcome: text("outcome").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("mail_log_alias_idx").on(t.aliasId, t.createdAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
@@ -472,3 +544,5 @@ export type Playlist = typeof playlists.$inferSelect;
 export type ShortLink = typeof shortLinks.$inferSelect;
 export type Contact = typeof contacts.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
+export type MailAlias = typeof mailAliases.$inferSelect;
+export type MailLogRow = typeof mailLog.$inferSelect;

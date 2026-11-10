@@ -14,6 +14,8 @@ const PUBLIC_PATHS = [
   /^\/go\/[^/]+$/,
   // Logan's public arcade (the games themselves are static files, outside the middleware).
   /^\/logans-games\/?$/,
+  // Amazon SNS posts "an email arrived" here; every request is signature-checked.
+  /^\/api\/mail\/inbound$/,
 ];
 
 /**

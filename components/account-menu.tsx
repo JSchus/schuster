@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2, LogOut, Menu, Shield } from "lucide-react";
+import { AtSign, Link2, LogOut, Menu, Shield } from "lucide-react";
 import { Link } from "next-view-transitions";
 import { useEffect, useRef, useState } from "react";
 import { AddPasskeyButton } from "@/components/auth/add-passkey-button";
@@ -14,7 +14,7 @@ type Props = {
   signOut: () => Promise<void>;
 };
 
-/** The less-used things (short links, admin, passkey, theme, sign out), so the header fits on a phone. */
+/** The less-used things (short links, email aliases, admin, passkey, theme, sign out), so the header fits on a phone. */
 export function AccountMenu({ email, showLinks, showAdmin, signOut }: Props) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -44,6 +44,11 @@ export function AccountMenu({ email, showLinks, showAdmin, signOut }: Props) {
           {showLinks ? (
             <Link href="/links" className={item}>
               <Link2 className="size-4" /> Short links
+            </Link>
+          ) : null}
+          {showLinks ? (
+            <Link href="/mail" className={item}>
+              <AtSign className="size-4" /> Email aliases
             </Link>
           ) : null}
           {showAdmin ? (

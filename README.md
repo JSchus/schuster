@@ -110,6 +110,15 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **Family directory** (`/family`): each account holder can list their own name, phone, birthday and address (`profiles`, off by default). Imported contacts never appear there.
 - Upcoming birthdays (next 30 days, Chicago time) show on both pages.
 
+### Email aliases
+
+- Members and admins make addresses like `netflix@m.schuster.me` on **/mail** (☰ menu → *Email aliases*). Mail to them is forwarded to the person's account email, and **Reply** goes back out from the alias, so the real address stays private. Everything is on the `m.` subdomain; `schuster.me`'s own mail stays with IONOS.
+- **In:** SES receives mail for `m.schuster.me` (MX → `inbound-smtp.us-east-1.amazonaws.com`), stores it in S3 under `inbound/` (deleted after 14 days) and notifies an SNS topic. SNS POSTs to the public `/api/mail/inbound`, which checks the SNS signature, the topic (`MAIL_INBOUND_TOPIC_ARN`) and that the stored key is under `inbound/` before doing anything (`lib/mail/sns.ts`, `lib/mail/inbound.ts`).
+- **Forward:** the raw message is re-sent through SES with `From: "Name via Schuster Media" <alias@m.schuster.me>`, `Reply-To: r-{token}@m.schuster.me` (one hidden token per outside sender) and the old signatures removed; the body bytes are untouched (`lib/mail/headers.ts`). Spam, viruses, and turned-off or expired aliases are dropped without a bounce.
+- **Masked reply:** mail to `r-{token}@` is sent on only if it comes from the alias's own people **and** passed SPF or DKIM. It keeps just the subject, threading and MIME headers, with `From` set to the alias.
+- **Groups** deliver to several people; group members can read the recent mail but only the owner changes the alias. `postmaster@` and `abuse@` go to the admins. A spam complaint pauses the alias. Everyone sees only their own aliases, admins included (`lib/db/mail.ts`).
+- **Recent mail:** the last 14 days per alias; opening one parses the stored copy with `postal-mime` and shows HTML in a sandboxed iframe with remote images blocked.
+
 ### Logan's Games
 
 - **schuster.me/logans-games** is public (no sign-in) and kept off search engines. It lists the games in `lib/logans-games/games.ts`.
@@ -210,6 +219,9 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
 | `S3_ACCESS_KEY_ID` | ✅ | `AKIA…` | IAM user key (see `infra/iam-policy.json`). |
 | `S3_SECRET_ACCESS_KEY` | ✅ | | IAM user secret. |
 | `S3_ENDPOINT` | | `http://localhost:5055` | Only for S3-compatible services. **Leave empty for AWS.** |
+| `MAIL_DOMAIN` | | `m.schuster.me` | Domain the email aliases live on (default). Never `schuster.me` itself. |
+| `MAIL_INBOUND_TOPIC_ARN` | aliases | `arn:aws:sns:us-east-1:…:schuster-mail` | The SNS topic SES notifies. Not a secret. `/api/mail/inbound` ignores every other topic. |
+| `MAIL_DRIVER` | | `ses` | `ses` (default) or `memory` (tests only). Sending uses the S3 key and region. |
 | `S3_FORCE_PATH_STYLE` | | `true` | Path-style URLs (needed by most emulators). `false` for AWS. |
 
 ---

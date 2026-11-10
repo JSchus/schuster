@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
+  NoSuchKey,
   HeadObjectCommand,
   ListObjectsV2Command,
   NotFound,
@@ -145,6 +146,17 @@ export class S3StorageAdapter implements StorageAdapter {
 
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async getBytes(key: string, maxBytes: number) {
+    try {
+      const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      if ((res.ContentLength ?? 0) > maxBytes) throw new Error(`Object too large (${res.ContentLength} bytes)`);
+      return res.Body ? await res.Body.transformToByteArray() : new Uint8Array();
+    } catch (err) {
+      if (err instanceof NoSuchKey || (err as { name?: string }).name === "NoSuchKey") return null;
+      throw err;
+    }
   }
 
   async deleteMany(keys: string[]) {
