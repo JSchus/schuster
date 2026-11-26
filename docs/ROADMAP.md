@@ -91,6 +91,8 @@ Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to 
 
 - **Race & Stream** (second game): racing, an arcade game on your PC, videos and live streams, with money, gear and subscriber milestones up to 1 million.
 
+- **Space Lane Shooter** (third game): animal pilots vs. space-animal enemies in 5 lanes, bosses every 5 levels, power-ups, upgrades and high scores.
+
 Next for Monster Packs: update 2, battles (leveling, special moves, Boss Tower), then update 3, earning (quests, achievements, login streak, Monster Whack). Later: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
 
 ## Email aliases ✅
