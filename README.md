@@ -133,10 +133,10 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **schuster.me/logans-games** is public (no sign-in) and kept off search engines. It lists the games in `lib/logans-games/games.ts`.
 - Each game is a folder of static files in `public/logans-games/{slug}/` with an `index.html`. `next.config.ts` rewrites `/logans-games/{slug}` to it, and the middleware skips those files, so the rest of the site still needs sign-in.
 - **Monster Packs** (`monster-packs/`):
-  - 200 monsters in 8 tiers, with packs from 50 to 5,000 coins;
-  - daily free pack, an index that pays 1 trillion coins when it's complete, selling extras, and battles;
+  - 300 monsters: Series 1 (the original 200 in 8 tiers) and Series 2 (100 more, with Cosmic, Galaxy and Infinity tiers up to 250,000 coins, plus 10 Weekend Event monsters);
+  - daily free pack, a Weekend Event pack (Sat–Sun, Chicago), index rewards (1 trillion for Series 1, 5 trillion for Series 2, 2 trillion per complete shiny set), a shiny index, selling extras, and battles;
   - rules in `logic.js` (tested in `tests/logans-games/`), screens in `game.js`;
-  - progress is saved on each device.
+  - progress is saved on each device (save version 2; version 1 saves upgrade without losing anything).
 - **To add a game:** a new folder in `public/logans-games/`, plus one entry in `lib/logans-games/games.ts`.
 
 ## Project layout

@@ -13,7 +13,7 @@
   let state = M.loadState(read(SAVE_KEY));
   let muted = read(MUTE_KEY) === "1";
   let screen = "packs";
-  const view = { type: "all", tier: "all", show: "all" };
+  const view = { series: "1", type: "all", tier: "all", show: "all", shiny: false };
 
   function read(key) {
     try {
@@ -158,7 +158,7 @@
       `div.card.t${card.tier}${opts.small ? ".small" : ""}${opts.shiny ? ".shiny" : ""}${opts.missing ? ".missing" : ""}`,
       { "data-id": card.id },
       h("span.num", {}, `#${card.id}`),
-      h("div.tier", {}, opts.missing ? "???" : `${M.TIERS[card.tier].name}${opts.shiny ? " ✨" : ""}`),
+      h("div.tier", {}, opts.missing ? "???" : `${M.TIERS[card.tier].name}${card.event ? " · 🎉 Event" : ""}${opts.shiny ? " ✨" : ""}`),
       h("div.name", {}, opts.missing ? "???" : card.name),
       h("div", { html: artSvg(card) }),
       opts.missing
@@ -169,14 +169,17 @@
     return el;
   }
 
+  /** A pack: a tier number, or "event" for the Weekend Event pack. */
   function packEl(tier, big) {
+    const event = tier === "event";
     return h(
-      `div.pack.t${tier}${big ? ".big" : ""}`,
-      { style: `--c: var(--t${tier})` },
-      h("span.logo", {}, "👾"),
-      h("span.label", {}, `${M.TIERS[tier].name} pack`),
+      `div.pack.${event ? "ev" : `t${tier}`}${big ? ".big" : ""}`,
+      { style: event ? null : `--c: var(--t${tier})` },
+      h("span.logo", {}, event ? "🎉" : "👾"),
+      h("span.label", {}, `${packName(tier)} pack`),
     );
   }
+  const packName = (tier) => (tier === "event" ? M.EVENT_PACK.name : M.TIERS[tier].name);
 
   /* ---------------------------------------------------------------- */
   /* Layout                                                            */
@@ -192,7 +195,7 @@
       {},
       h("h1", {}, h("a", { href: "/logans-games" }, "👾 Monster Packs")),
       h("span.pill.coins", { title: `${state.coins.toLocaleString()} coins` }, coins(state.coins)),
-      h("span.pill", {}, `📖 ${M.collectedCount(state)}/${M.TOTAL_CARDS}`),
+      h("span.pill", { title: "Different monsters collected (all series)" }, `📖 ${M.collectedCount(state, 0)}/${M.CARDS.length}`),
       h(
         "button.icon-btn",
         {
@@ -244,6 +247,40 @@
 
   let countdownTimer = null;
 
+  /** "1d 4h" / "3h 12m" / "8m". */
+  function timeLeft(ms) {
+    const d = Math.floor(ms / 86400000);
+    const hr = Math.floor((ms % 86400000) / 3600000);
+    const min = Math.floor((ms % 3600000) / 60000);
+    return d ? `${d}d ${hr}h` : hr ? `${hr}h ${min}m` : `${Math.max(1, min)}m`;
+  }
+
+  /** The Weekend Event pack on Saturdays and Sundays; a countdown the rest of the week. */
+  function eventBox() {
+    const on = M.isEventDay();
+    const when = h("div.muted", {}, on ? `Ends in ${timeLeft(M.msUntilEventChange())}` : `Back this weekend: in ${timeLeft(M.msUntilEventChange())}`);
+    return h(
+      `div.event${on ? ".on" : ""}`,
+      {},
+      packEl("event"),
+      h(
+        "div",
+        { style: "flex:1;min-width:170px" },
+        h("strong", {}, on ? "🎉 Weekend Event is ON!" : "🎉 Weekend Event"),
+        h("div", {}, `${M.EVENT_CARDS.length} Lucky monsters you can only get in this pack. Double ✨ shiny odds!`),
+        when,
+      ),
+      on
+        ? h(
+            "div.row",
+            { style: "flex-direction:column;align-items:stretch;gap:6px" },
+            h("span.price", {}, `🪙 ${coins(M.EVENT_PACK.price)}`),
+            h("button.btn", { disabled: state.coins < M.EVENT_PACK.price, onclick: () => startOpening("event", false) }, "Buy"),
+          )
+        : null,
+    );
+  }
+
   function packsScreen() {
     clearInterval(countdownTimer);
     const canClaim = M.canClaimDaily(state);
@@ -269,6 +306,7 @@
         h("div", { style: "flex:1;min-width:160px" }, h("strong", {}, "Daily free pack"), h("div.muted", {}, canClaim ? "A free Basic pack, every day!" : countdown)),
         h("button.btn", { disabled: !canClaim, onclick: () => startOpening(0, true) }, canClaim ? "Open free pack" : "Opened today"),
       ),
+      eventBox(),
       h("h2", {}, "Shop"),
       h(
         "div.shop",
@@ -283,19 +321,23 @@
           ),
         ),
       ),
-      h("p.muted", {}, `Every pack has ${M.PACK_SIZE} cards and at least one card of that pack's tier or better. Collect all ${M.TOTAL_CARDS} cards to win 1 TRILLION coins!`),
+      h(
+        "p.muted",
+        {},
+        `Every pack has ${M.PACK_SIZE} cards and at least one card of that pack's tier or better. Collect all ${M.SERIES[0].total} Series 1 monsters for 1 TRILLION coins, all ${M.SERIES[1].total} Series 2 monsters for 5 TRILLION, and every shiny in a series for 2 TRILLION more!`,
+      ),
     );
   }
 
   /** Buy (or claim) a pack, then show the tear-it-open screen. */
   function startOpening(tier, free) {
-    const res = free ? M.claimDaily(state) : M.openPack(state, tier);
+    const res = free ? M.claimDaily(state) : tier === "event" ? M.openEventPack(state) : M.openPack(state, tier);
     if (!res.ok) return toast(res.reason);
     setState(res.state);
-    showOpening(tier, res.cards, res.completed);
+    showOpening(tier, res.cards, res.rewards);
   }
 
-  function showOpening(tier, cards, completed) {
+  function showOpening(tier, cards, rewards) {
     clearInterval(countdownTimer);
     const progress = h("div.tear-progress");
     const top = h("div.tear-top");
@@ -306,7 +348,7 @@
     const ripBtn = h("button.btn", { onclick: () => rip() }, "Rip!");
     const hint = h("p.muted", {}, "Swipe across the top of the pack, or tap Rip!");
     const box = h("div.opening", {}, zone, ripBtn, hint);
-    const overlay = h("div.overlay", { role: "dialog", "aria-label": `${M.TIERS[tier].name} pack` }, box);
+    const overlay = h("div.overlay", { role: "dialog", "aria-label": `${packName(tier)} pack` }, box);
     document.body.append(overlay);
     ripBtn.focus();
 
@@ -359,7 +401,7 @@
         {
           onclick: () => {
             overlay.remove();
-            if (completed) celebrate();
+            if (rewards.length) celebrate(rewards);
             render();
           },
         },
@@ -367,17 +409,17 @@
       );
       doneBtn.hidden = true;
       const summary = h("p.muted", {});
-      box.replaceChildren(h("h2", {}, `${M.TIERS[tier].name} pack`), row, h("div.row", {}, allBtn, doneBtn), summary);
+      box.replaceChildren(h("h2", {}, `${packName(tier)} pack`), row, h("div.row", {}, allBtn, doneBtn), summary);
 
       function reveal(slot, c, card) {
         if (slot.classList.contains("shown")) return;
         slot.classList.add("shown");
         slot.setAttribute("aria-label", `${card.name}, ${M.TIERS[card.tier].name}${c.shiny ? ", shiny" : ""}${c.isNew ? ", new" : ""}`);
         if (c.isNew) slot.append(h("span.new-badge", {}, "NEW"));
-        if (card.tier >= 3 || c.shiny) {
+        if (card.tier >= 3 || c.shiny || card.event) {
           sounds.big(card.tier);
           slot.querySelector(".card").classList.add("burst");
-          if (card.tier >= 4) confetti(card.tier * 6);
+          if (card.tier >= 4) confetti(Math.min(card.tier, 10) * 6);
           if (card.tier >= 4 && navigator.vibrate) navigator.vibrate([60, 40, 120]);
         } else sounds.flip(card.tier);
         revealed++;
@@ -392,18 +434,20 @@
     }
   }
 
-  function celebrate() {
+  /** Big party for index rewards: [{ label, coins }]. */
+  function celebrate(rewards) {
     sounds.win();
     confetti(120);
+    const total = rewards.reduce((n, r) => n + r.coins, 0);
     const overlay = h(
       "div.overlay",
-      { role: "dialog", "aria-label": "You collected every card" },
+      { role: "dialog", "aria-label": "Index reward" },
       h(
         "div.celebrate",
         {},
         h("div", { style: "font-size:64px" }, "🏆"),
-        h("div.big", {}, "+1 TRILLION COINS!"),
-        h("p", {}, `You collected all ${M.TOTAL_CARDS} monsters. LEGEND!`),
+        h("div.big", {}, `+${coins(total)} COINS!`),
+        rewards.map((r) => h("p", {}, `You collected ${r.label}: +${coins(r.coins)}. LEGEND!`)),
         h("button.btn", { onclick: () => overlay.remove() }, "Awesome!"),
       ),
     );
@@ -415,9 +459,22 @@
   /* ---------------------------------------------------------------- */
 
   function indexScreen() {
-    const have = M.collectedCount(state);
+    const series = M.SERIES[Number(view.series) - 1] || M.SERIES[0];
+    const have = view.shiny ? M.shinyCount(state, series.id) : M.collectedCount(state, series.id);
     const extraValue = M.extrasValue(state);
-    const shinyCount = Object.values(state.shiny).filter((n) => n > 0).length;
+    const won =
+      series.id === 1 ? state.rewardClaimed : state.rewards.series2;
+    const shinyWon = state.rewards[`shiny${series.id}`];
+    const headline = view.shiny
+      ? `✨ Shinies ${have} / ${series.total}`
+      : `${series.name}: ${have} / ${series.total}`;
+    const subline = view.shiny
+      ? shinyWon
+        ? `🏆 Every ${series.name} shiny found: 2 trillion coins won!`
+        : `Find every ${series.name} shiny to win 2 TRILLION coins`
+      : won
+        ? `🏆 ${series.name} complete: ${coins(series.reward)} coins won!`
+        : `Collect them all to win ${coins(series.reward)} coins${series.id === 2 ? " (includes 10 Weekend Event monsters)" : ""}`;
     const select = (key, options, label) =>
       h(
         "select",
@@ -426,17 +483,20 @@
       );
     const list = M.CARDS.filter(
       (c) =>
+        c.series === series.id &&
         (view.type === "all" || c.type === view.type) &&
         (view.tier === "all" || String(c.tier) === view.tier) &&
-        (view.show === "all" || (view.show === "have") === Boolean(state.owned[c.id] || state.shiny[c.id])),
+        (view.show === "all" || (view.show === "have") === Boolean(view.shiny ? state.shiny[c.id] : state.owned[c.id] || state.shiny[c.id])),
     );
+    const seriesTab = (id, label) =>
+      h("button.chip", { "aria-pressed": view.series === id ? "true" : "false", onclick: () => ((view.series = id), (view.tier = "all"), render()) }, label);
     return h(
       "section",
       {},
       h(
         "div.row",
         { style: "justify-content:space-between" },
-        h("div", {}, h("strong", { style: "font-size:20px" }, `Collected ${have} / ${M.TOTAL_CARDS}`), h("div.muted", {}, state.rewardClaimed ? "🏆 Index complete: 1 trillion coins won!" : `Collect them all to win 1 TRILLION coins · ✨ ${shinyCount} shiny`)),
+        h("div", {}, h("strong", { style: "font-size:20px" }, headline), h("div.muted", {}, subline)),
         h(
           "button.btn",
           {
@@ -452,12 +512,23 @@
           extraValue ? `Sell all extras (+${coins(extraValue)})` : "No extras to sell",
         ),
       ),
-      h("div.progress", { role: "progressbar", "aria-valuemin": 0, "aria-valuemax": M.TOTAL_CARDS, "aria-valuenow": have, style: "margin-top:10px" }, h("div", { style: `width:${(have / M.TOTAL_CARDS) * 100}%` })),
+      h("div.progress", { role: "progressbar", "aria-valuemin": 0, "aria-valuemax": series.total, "aria-valuenow": have, style: "margin-top:10px" }, h("div", { style: `width:${(have / series.total) * 100}%` })),
+      h(
+        "div.filters",
+        {},
+        seriesTab("1", `Series 1 (${M.collectedCount(state, 1)}/${M.SERIES[0].total})`),
+        seriesTab("2", `Series 2 (${M.collectedCount(state, 2)}/${M.SERIES[1].total})`),
+        h("button.chip.shiny-chip", { "aria-pressed": view.shiny ? "true" : "false", onclick: () => ((view.shiny = !view.shiny), render()) }, `✨ Shiny index ${view.shiny ? "on" : "off"}`),
+      ),
       h(
         "div.filters",
         {},
         select("type", [["all", "All types"], ...M.TYPES.map((t) => [t, `${TYPE_ICON[t]} ${M.TYPE_NAMES[t]}`])], "Type"),
-        select("tier", [["all", "All tiers"], ...M.TIERS.map((t, i) => [String(i), t.name])], "Tier"),
+        select(
+          "tier",
+          [["all", "All tiers"], ...M.TIERS.map((t, i) => [String(i), t.name]).filter(([i]) => M.CARDS.some((c) => c.series === series.id && String(c.tier) === i))],
+          "Tier",
+        ),
         select("show", [["all", "All cards"], ["have", "Have"], ["missing", "Missing"]], "Show"),
       ),
       h(
@@ -466,8 +537,12 @@
         list.map((c) => {
           const n = state.owned[c.id] || 0;
           const sh = state.shiny[c.id] || 0;
-          const missing = !n && !sh;
-          return h("button", { "aria-label": missing ? `#${c.id}, not found yet` : c.name, onclick: () => !missing && showDetail(c) }, cardEl(c, { small: true, missing, shiny: !n && sh > 0, count: n + sh }));
+          const missing = view.shiny ? !sh : !n && !sh;
+          return h(
+            "button",
+            { "aria-label": missing ? `#${c.id}, ${view.shiny ? "no shiny" : "not found"} yet` : c.name, onclick: () => (n || sh) && showDetail(c) },
+            cardEl(c, { small: true, missing, shiny: view.shiny ? sh > 0 : !n && sh > 0, count: view.shiny ? sh : n + sh }),
+          );
         }),
       ),
     );
@@ -502,7 +577,7 @@
         {},
         cardEl(card, { shiny: sh > 0 && !n }),
         h("p", { style: "margin:0;text-align:center" }, card.desc),
-        h("div.muted", {}, `❤️ ${card.hp} HP · ⚔️ ${card.power} power · ${M.TIERS[card.tier].name}`),
+        h("div.muted", {}, `❤️ ${card.hp} HP · ⚔️ ${card.power} power · ${M.TIERS[card.tier].name} · Series ${card.series}${card.event ? " · 🎉 Weekend Event" : ""}`),
         h("div.muted", {}, `You have ${n} normal${sh ? ` and ${sh} ✨ shiny` : ""}`),
         h("div.row", { style: "justify-content:center" }, n > 1 ? sellBtn(false) : null, sh > 1 ? sellBtn(true) : null),
         h("button.btn.ghost", { onclick: close }, "Close"),
