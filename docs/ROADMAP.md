@@ -89,7 +89,9 @@ Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to 
 
 - **Series 2** (update 1 of 3): 100 new monsters, three new pack tiers (Cosmic 10K, Galaxy 50K, Infinity 250K), a Weekend Event pack (Saturdays and Sundays, Chicago time) with 10 Lucky event-only monsters and double shiny odds, a shiny index, and new rewards (5 trillion for Series 2, 2 trillion per complete shiny set). Old saves carry over.
 
-Next: update 2, battles (leveling, special moves, Boss Tower), then update 3, earning (quests, achievements, login streak, Monster Whack). Later: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
+- **Race & Stream** (second game): racing, an arcade game on your PC, videos and live streams, with money, gear and subscriber milestones up to 1 million.
+
+Next for Monster Packs: update 2, battles (leveling, special moves, Boss Tower), then update 3, earning (quests, achievements, login streak, Monster Whack). Later: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
 
 ## Email aliases ✅
 
