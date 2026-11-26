@@ -14,6 +14,13 @@ export type LoganGame = {
 
 export const LOGANS_GAMES: LoganGame[] = [
   {
+    slug: "race-and-stream",
+    title: "Race & Stream",
+    blurb: "Race cars, beat arcade high scores, make videos and go live. Grow to 1 million subscribers!",
+    emoji: "🏁",
+    added: "2026-11-26",
+  },
+  {
     slug: "monster-packs",
     title: "Monster Packs",
     blurb: "Rip open packs, collect all 200 monsters, battle, and win 1 trillion coins.",

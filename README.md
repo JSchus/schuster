@@ -137,6 +137,7 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
   - daily free pack, a Weekend Event pack (Sat–Sun, Chicago), index rewards (1 trillion for Series 1, 5 trillion for Series 2, 2 trillion per complete shiny set), a shiny index, selling extras, and battles;
   - rules in `logic.js` (tested in `tests/logans-games/`), screens in `game.js`;
   - progress is saved on each device (save version 2; version 1 saves upgrade without losing anything).
+- **Race & Stream** (`race-and-stream/`): three games in one. Race top-down against computer cars, play Block Dodge on your in-game PC, and make videos or go live. All three earn money (for faster cars, PCs, cameras and mics) and subscribers (1K, 100K and 1M unlock tracks, live streaming, sponsor deals). Rules in `logic.js` (tested in `tests/logans-games/race-and-stream.test.ts`); adding `#autopilot` to the address drives the car, for testing.
 - **To add a game:** a new folder in `public/logans-games/`, plus one entry in `lib/logans-games/games.ts`.
 
 ## Project layout
