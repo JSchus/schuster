@@ -138,6 +138,7 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
   - rules in `logic.js` (tested in `tests/logans-games/`), screens in `game.js`;
   - progress is saved on each device (save version 2; version 1 saves upgrade without losing anything).
 - **Race & Stream** (`race-and-stream/`): three games in one. Race top-down against computer cars, play Block Dodge on your in-game PC, and make videos or go live. All three earn money (for faster cars, PCs, cameras and mics) and subscribers (1K, 100K and 1M unlock tracks, live streaming, sponsor deals). Rules in `logic.js` (tested in `tests/logans-games/race-and-stream.test.ts`); adding `#autopilot` to the address drives the car, for testing.
+- **Space Lane Shooter** (`space-lane-shooter/`): animal pilots (each with a power) fly along 5 lanes with auto-fire, against zig-zagging Alien Bees, lunging Laser Sharks, egg-dropping Robo-Chickens and Space Slugs, with a boss every 5 levels. Power-ups (triple shot, shield, laser, bomb, heart); star coins buy upgrades and pilots; top-5 high scores. Rules in `logic.js` (tested in `tests/logans-games/space-lane-shooter.test.ts`); `#autopilot` flies the ship, for testing.
 - **To add a game:** a new folder in `public/logans-games/`, plus one entry in `lib/logans-games/games.ts`.
 
 ## Project layout
