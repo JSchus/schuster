@@ -1,7 +1,8 @@
 /* Monster Packs: game rules (no page code), by Logan.
  *
- * Everything here is pure: the 200 cards, pack odds, coins, the daily
- * pack, selling, battles and saving. game.js draws the screens. Loaded in
+ * Everything here is pure: the 300 cards (Series 1 and 2), pack odds,
+ * coins, the daily pack, the weekend event pack, selling, battles and
+ * saving. game.js draws the screens. Loaded in
  * the page as window.MonsterPacks, and by the tests via module.exports.
  */
 (function (root) {
@@ -23,15 +24,28 @@
     { id: "god", name: "God", count: 10, price: 1000, sell: 120, power: [95, 120] },
     { id: "original", name: "Original", count: 6, price: 2500, sell: 300, power: [115, 140] },
     { id: "goated", name: "Goated", count: 4, price: 5000, sell: 700, power: [135, 170] },
+    // Series 2 tiers (no Series 1 cards).
+    { id: "cosmic", name: "Cosmic", count: 0, price: 10000, sell: 1200, power: [165, 200] },
+    { id: "galaxy", name: "Galaxy", count: 0, price: 50000, sell: 5000, power: [195, 240] },
+    { id: "infinity", name: "Infinity", count: 0, price: 250000, sell: 20000, power: [235, 300] },
   ];
+  /** Series 1: the original 200 (index reward 1 trillion). */
   const TOTAL_CARDS = 200;
   const PACK_SIZE = 5;
   const SHINY_CHANCE = 1 / 40;
   const SHINY_SELL_MULTIPLIER = 3;
   const START_COINS = 200;
-  const COMPLETE_REWARD = 1e12; // 1 trillion coins for collecting every card
+  const COMPLETE_REWARD = 1e12; // 1 trillion coins for collecting every Series 1 card
+  const SERIES2_REWARD = 5e12; // 5 trillion for every Series 2 card
+  const SHINY_SET_REWARD = 2e12; // 2 trillion for every shiny in a series
   /** How likely each tier is in an ordinary slot of a Basic pack. */
-  const BASE_WEIGHTS = [64, 22, 9, 3.2, 1.2, 0.45, 0.12, 0.03];
+  const BASE_WEIGHTS = [64, 22, 9, 3.2, 1.2, 0.45, 0.12, 0.03, 0.008, 0.002, 0.0005];
+
+  /** Series 2: how many new cards per tier (Basic … Infinity), plus 10 event-only cards. */
+  const SERIES2_COUNTS = [20, 15, 12, 8, 5, 3, 1, 1, 12, 8, 5];
+  const EVENT_TIERS = [4, 4, 4, 5, 5, 5, 6, 6, 7, 8];
+  /** The Weekend Event pack: only on Saturdays and Sundays (Chicago time). */
+  const EVENT_PACK = { id: "weekend", name: "Weekend Event", price: 2000, shinyChance: 1 / 20 };
 
   const TYPES = ["fire", "water", "leaf", "storm", "frost", "shadow"];
   const TYPE_NAMES = { fire: "Fire", water: "Water", leaf: "Leaf", storm: "Storm", frost: "Frost", shadow: "Shadow" };
@@ -71,7 +85,8 @@
     shadow: ["Shade", "Gloom", "Umbra", "Night", "Phantom", "Dusk", "Hex", "Murk", "Eclipse", "Wraith", "Void", "Raven"],
   };
   const ENDS = ["pup", "fang", "wing", "horn", "maw", "claw", "tail", "drake", "beast", "fin", "tusk", "shell", "back", "snout", "paw", "ling", "zor", "rex", "on", "ix"];
-  const TIER_TITLES = ["", "", "", "", "Elder ", "Ancient ", "Prime ", "King "];
+  const TIER_TITLES = ["", "", "", "", "Elder ", "Ancient ", "Prime ", "King ", "Cosmic ", "Galactic ", "Infinite "];
+  const ENDS2 = ["nova", "quake", "mancer", "byte", "spire", "comet", "orb", "glider", "storm", "crest", "rune", "fury"];
   const DESCRIPTIONS = {
     fire: ["Its breath can toast marshmallows from a mile away.", "Leaves glowing footprints wherever it walks.", "Sneezes sparks when it gets excited."],
     water: ["Sings to whales on quiet nights.", "Can hold its breath for a whole week.", "Makes tiny rainbows with its tail."],
@@ -114,36 +129,94 @@
             hue: Math.floor(rng() * 30) - 15,
             size: 0.85 + rng() * 0.3,
           },
+          series: 1,
+          event: false,
         });
         id++;
       }
     });
+    // Series 2 is built after, with its own seed, so Series 1 never changes.
+    const rng2 = seeded(20261126);
+    const make = (tierIndex, event) => {
+      const tier = TIERS[tierIndex];
+      const type = TYPES[(id * 7 + tierIndex) % TYPES.length];
+      let name = "";
+      for (let tries = 0; !name || used.has(name); tries++) {
+        name = (event ? "Lucky " : TIER_TITLES[tierIndex]) + pick(rng2, STARTS[type]) + pick(rng2, ENDS2);
+        if (tries > 50) name += ` ${tries}`;
+      }
+      used.add(name);
+      const power = between(rng2, tier.power[0], tier.power[1]);
+      cards.push({
+        id,
+        name,
+        type,
+        tier: tierIndex,
+        power,
+        hp: Math.round(power * (2.4 + rng2() * 0.8)),
+        desc: event ? "Only shows up in Weekend Event packs." : pick(rng2, DESCRIPTIONS[type]),
+        art: {
+          body: Math.floor(rng2() * 4),
+          eyes: 1 + Math.floor(rng2() * 3),
+          horns: Math.floor(rng2() * 3),
+          wings: rng2() < 0.25 + Math.min(tierIndex, 8) * 0.08,
+          spikes: rng2() < 0.5,
+          hue: Math.floor(rng2() * 30) - 15,
+          size: 0.85 + rng2() * 0.3,
+        },
+        series: 2,
+        event,
+      });
+      id++;
+    };
+    SERIES2_COUNTS.forEach((n, tierIndex) => {
+      for (let i = 0; i < n; i++) make(tierIndex, false);
+    });
+    for (const tierIndex of EVENT_TIERS) make(tierIndex, true);
     return cards;
   }
   const CARDS = buildCards();
   const CARD_BY_ID = new Map(CARDS.map((c) => [c.id, c]));
-  const CARDS_BY_TIER = TIERS.map((_, t) => CARDS.filter((c) => c.tier === t));
+  /** Cards that can come out of ordinary packs (not event-only), by tier. */
+  const CARDS_BY_TIER = TIERS.map((_, t) => CARDS.filter((c) => c.tier === t && !c.event));
+  const EVENT_CARDS = CARDS.filter((c) => c.event);
+  const SERIES = [
+    { id: 1, name: "Series 1", total: CARDS.filter((c) => c.series === 1).length, reward: COMPLETE_REWARD },
+    { id: 2, name: "Series 2", total: CARDS.filter((c) => c.series === 2).length, reward: SERIES2_REWARD },
+  ];
 
   /* ---------------------------------------------------------------- */
   /* Saving                                                             */
   /* ---------------------------------------------------------------- */
 
+  /** `rewardClaimed` is Series 1's 1 trillion (kept from version 1 saves); `rewards` holds the rest. */
   function newState() {
-    return { v: 1, coins: START_COINS, owned: {}, shiny: {}, lastDaily: null, rewardClaimed: false, packsOpened: 0, battlesWon: 0 };
+    return {
+      v: 2,
+      coins: START_COINS,
+      owned: {},
+      shiny: {},
+      lastDaily: null,
+      rewardClaimed: false,
+      rewards: { series2: false, shiny1: false, shiny2: false },
+      packsOpened: 0,
+      battlesWon: 0,
+    };
   }
 
-  /** Read a saved game; anything broken or unknown starts fresh. */
+  /** Read a saved game (version 1 saves are upgraded, keeping everything); anything broken starts fresh. */
   function loadState(json) {
     try {
       const s = JSON.parse(json);
-      if (!s || s.v !== 1 || typeof s.coins !== "number" || typeof s.owned !== "object") return newState();
-      return { ...newState(), ...s, owned: { ...s.owned }, shiny: { ...(s.shiny || {}) } };
+      if (!s || (s.v !== 1 && s.v !== 2) || typeof s.coins !== "number" || typeof s.owned !== "object") return newState();
+      const fresh = newState();
+      return { ...fresh, ...s, v: 2, owned: { ...s.owned }, shiny: { ...(s.shiny || {}) }, rewards: { ...fresh.rewards, ...(s.rewards || {}) } };
     } catch {
       return newState();
     }
   }
 
-  const clone = (s) => ({ ...s, owned: { ...s.owned }, shiny: { ...s.shiny } });
+  const clone = (s) => ({ ...s, owned: { ...s.owned }, shiny: { ...s.shiny }, rewards: { ...s.rewards } });
 
   /* ---------------------------------------------------------------- */
   /* Packs                                                              */
@@ -172,37 +245,108 @@
     return tiers.sort((a, b) => a - b);
   }
 
+  /** Put these cards in the collection; returns them with isNew and shiny. */
+  function addCards(s, list, rng, shinyChance) {
+    return list.map((card) => {
+      const shiny = rng() < shinyChance;
+      const isNew = !s.owned[card.id] && !s.shiny[card.id];
+      if (shiny) s.shiny[card.id] = (s.shiny[card.id] || 0) + 1;
+      else s.owned[card.id] = (s.owned[card.id] || 0) + 1;
+      return { id: card.id, shiny, isNew };
+    });
+  }
+
+  /** Pay out any index rewards just earned (each only once). */
+  function claimRewards(s) {
+    const won = [];
+    const pay = (label, coins) => {
+      s.coins += coins;
+      won.push({ label, coins });
+    };
+    if (!s.rewardClaimed && collectedCount(s, 1) === SERIES[0].total) {
+      s.rewardClaimed = true;
+      pay(`every one of the ${SERIES[0].total} Series 1 monsters`, COMPLETE_REWARD);
+    }
+    if (!s.rewards.series2 && collectedCount(s, 2) === SERIES[1].total) {
+      s.rewards.series2 = true;
+      pay(`every one of the ${SERIES[1].total} Series 2 monsters`, SERIES2_REWARD);
+    }
+    for (const series of SERIES) {
+      const key = `shiny${series.id}`;
+      if (!s.rewards[key] && shinyCount(s, series.id) === series.total) {
+        s.rewards[key] = true;
+        pay(`every ✨ shiny in ${series.name}`, SHINY_SET_REWARD);
+      }
+    }
+    return won;
+  }
+
   /**
    * Open a pack. Pays its price unless `free`. Returns the new state, the
-   * cards (with isNew and shiny), and whether this pack completed the index.
+   * cards (with isNew and shiny), and any index rewards it just won.
    */
   function openPack(state, packTier, rng = Math.random, opts = {}) {
     const price = TIERS[packTier].price;
     if (!opts.free && state.coins < price) return { ok: false, reason: "Not enough coins", state };
     const s = clone(state);
     if (!opts.free) s.coins -= price;
-    const cards = rollPackTiers(packTier, rng).map((t) => {
-      const card = pick(rng, CARDS_BY_TIER[t]);
-      const shiny = rng() < SHINY_CHANCE;
-      const isNew = !s.owned[card.id] && !s.shiny[card.id];
-      if (shiny) s.shiny[card.id] = (s.shiny[card.id] || 0) + 1;
-      else s.owned[card.id] = (s.owned[card.id] || 0) + 1;
-      return { id: card.id, shiny, isNew };
-    });
+    const cards = addCards(
+      s,
+      rollPackTiers(packTier, rng).map((t) => pick(rng, CARDS_BY_TIER[t])),
+      rng,
+      SHINY_CHANCE,
+    );
     s.packsOpened += 1;
-    const completed = collectedCount(s) === TOTAL_CARDS && !s.rewardClaimed;
-    if (completed) {
-      s.rewardClaimed = true;
-      s.coins += COMPLETE_REWARD;
-    }
-    return { ok: true, state: s, cards, completed };
+    const rewards = claimRewards(s);
+    return { ok: true, state: s, cards, rewards, completed: rewards.length > 0 };
   }
 
-  /** How many of the 200 different cards you have (normal or shiny). */
-  function collectedCount(state) {
+  /** How many different cards you have (normal or shiny), in one series or (0) all of them. */
+  function collectedCount(state, series = 1) {
     let n = 0;
-    for (const c of CARDS) if (state.owned[c.id] || state.shiny[c.id]) n++;
+    for (const c of CARDS) if ((!series || c.series === series) && (state.owned[c.id] || state.shiny[c.id])) n++;
     return n;
+  }
+  /** How many different shinies you have in a series (0 = all). */
+  function shinyCount(state, series = 0) {
+    let n = 0;
+    for (const c of CARDS) if ((!series || c.series === series) && state.shiny[c.id]) n++;
+    return n;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Weekend Event pack                                                */
+  /* ---------------------------------------------------------------- */
+
+  const chicagoDay = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", weekday: "short" });
+  /** Saturday or Sunday in Chicago. */
+  function isEventDay(now = Date.now()) {
+    const d = chicagoDay.format(new Date(now));
+    return d === "Sat" || d === "Sun";
+  }
+  /** Time until the event starts (if it's off) or ends (if it's on). Chicago days change on whole hours. */
+  function msUntilEventChange(now = Date.now()) {
+    const on = isEventDay(now);
+    let t = Math.ceil((now + 1) / 3600000) * 3600000;
+    for (let i = 0; i < 24 * 8 && isEventDay(t) === on; i++) t += 3600000;
+    return t - now;
+  }
+  /**
+   * The Weekend Event pack: one event-only monster (the last card) plus four
+   * cards like a Legendary pack, all with double shiny odds.
+   */
+  function openEventPack(state, rng = Math.random, now = Date.now()) {
+    if (!isEventDay(now)) return { ok: false, reason: "The Weekend Event pack is only in the shop on Saturdays and Sundays", state };
+    if (state.coins < EVENT_PACK.price) return { ok: false, reason: "Not enough coins", state };
+    const s = clone(state);
+    s.coins -= EVENT_PACK.price;
+    const normal = rollPackTiers(3, rng)
+      .slice(0, PACK_SIZE - 1)
+      .map((t) => pick(rng, CARDS_BY_TIER[t]));
+    const cards = addCards(s, [...normal, pick(rng, EVENT_CARDS)], rng, EVENT_PACK.shinyChance);
+    s.packsOpened += 1;
+    const rewards = claimRewards(s);
+    return { ok: true, state: s, cards, rewards, completed: rewards.length > 0 };
   }
 
   /* ---------------------------------------------------------------- */
@@ -355,6 +499,11 @@
     TYPE_NAMES,
     BEATS,
     TOTAL_CARDS,
+    SERIES,
+    SERIES2_REWARD,
+    SHINY_SET_REWARD,
+    EVENT_PACK,
+    EVENT_CARDS,
     PACK_SIZE,
     SHINY_CHANCE,
     START_COINS,
@@ -368,6 +517,10 @@
     openPack,
     rollPackTiers,
     collectedCount,
+    shinyCount,
+    isEventDay,
+    msUntilEventChange,
+    openEventPack,
     localDay,
     canClaimDaily,
     claimDaily,
