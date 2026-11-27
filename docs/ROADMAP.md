@@ -93,6 +93,8 @@ Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to 
 
 - **Space Lane Shooter** (third game): animal pilots vs. space-animal enemies in 5 lanes, bosses every 5 levels, power-ups, upgrades and high scores.
 
+- **THE GAME** (fourth game): a side-view block-building sandbox with Survival and Creative, random worlds, mining, crafting, creatures at night and saved worlds.
+
 Next for Monster Packs: update 2, battles (leveling, special moves, Boss Tower), then update 3, earning (quests, achievements, login streak, Monster Whack). Later: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
 
 ## Email aliases ✅
