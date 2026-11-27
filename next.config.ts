@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 /** The L Games project's production address on Vercel. */
 const L_GAMES_ORIGIN = "https://l-games-taupe.vercel.app";
+/** The O Games project's production address on Vercel. */
+const O_GAMES_ORIGIN = "https://o-games-phi.vercel.app";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -32,11 +34,14 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    // L Games is its own Vercel project (repo JSchus/l-games, basePath /l-games). Serving it
-    // through schuster.me keeps the address, so players' saves (stored per site) carry over.
+    // L Games and O Games are each their own Vercel project (repos JSchus/l-games and
+    // JSchus/o-games, basePath /l-games and /o-games). Serving them through schuster.me keeps
+    // the address, so players' saves (stored per site) carry over.
     return [
       { source: "/l-games", destination: `${L_GAMES_ORIGIN}/l-games` },
       { source: "/l-games/:path*", destination: `${L_GAMES_ORIGIN}/l-games/:path*` },
+      { source: "/o-games", destination: `${O_GAMES_ORIGIN}/o-games` },
+      { source: "/o-games/:path*", destination: `${O_GAMES_ORIGIN}/o-games/:path*` },
     ];
   },
 };

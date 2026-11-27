@@ -14,9 +14,10 @@ const PUBLIC_PATHS = [
   /^\/go\/[^/]+$/,
   // "Confirm replies from this address" links (each checks its own token).
   /^\/mail-confirm\/[^/]+$/,
-  // The public L Games arcade (its own Vercel project, forwarded in next.config.ts), and its
-  // old address, which redirects there. The middleware skips /l-games; this is a safety net.
-  /^\/l-games(\/.*)?$/,
+  // The public L Games and O Games arcades (their own Vercel projects, forwarded in
+  // next.config.ts), and L Games' old address, which redirects there. The middleware
+  // skips /l-games and /o-games; this is a safety net.
+  /^\/[lo]-games(\/.*)?$/,
   /^\/logans-games(\/.*)?$/,
   // Amazon SNS posts "an email arrived" here; every request is signature-checked.
   /^\/api\/mail\/inbound$/,

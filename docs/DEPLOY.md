@@ -274,6 +274,7 @@ The arcade is its own project now: repo **JSchus/l-games**, Vercel project **l-g
 
 - [ ] Open **https://schuster.me/l-games** while signed out (for example in a private window) to check it's public.
 - [ ] New games and the Monster Packs store (Stripe) are handled in the `l-games` repo.
+- [ ] **O Games** works the same way: repo **JSchus/o-games**, Vercel project **o-games**, at **https://schuster.me/o-games**. Its games and idea box are handled in the `o-games` repo.
 
 ## 15. Email aliases (Amazon SES, ≈30 min)
 
