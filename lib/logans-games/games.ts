@@ -14,11 +14,18 @@ export type LoganGame = {
 
 export const LOGANS_GAMES: LoganGame[] = [
   {
+    slug: "the-game",
+    title: "THE GAME",
+    blurb: "Dig, build and craft in a giant block world. Survive the night, or build anything in Creative!",
+    emoji: "⛏️",
+    added: "2026-11-27",
+  },
+  {
     slug: "space-lane-shooter",
     title: "Space Lane Shooter",
     blurb: "Animal pilots vs. space bees, laser sharks and robo-chickens! Power-ups, bosses and upgrades.",
     emoji: "🚀",
-    added: "2026-11-27",
+    added: "2026-11-26",
   },
   {
     slug: "race-and-stream",
