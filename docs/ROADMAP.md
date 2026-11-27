@@ -83,21 +83,10 @@ Follow-ups: a contact card at `/go/{name}`, per-day visit charts.
 
 Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to send a link to several people at once, birthday reminders by email.
 
-## Logan's Games ✅
+## L Games ✅
 
-- A public arcade at `/logans-games`. First game: **Monster Packs** (Logan's design: 200 cards, 8 pack tiers, a 1 trillion coin reward for completing the index, a daily free pack, selling, battles).
-
-- **Series 2** (update 1 of 3): 100 new monsters, three new pack tiers (Cosmic 10K, Galaxy 50K, Infinity 250K), a Weekend Event pack (Saturdays and Sundays, Chicago time) with 10 Lucky event-only monsters and double shiny odds, a shiny index, and new rewards (5 trillion for Series 2, 2 trillion per complete shiny set). Old saves carry over.
-
-- **Race & Stream** (second game): racing, an arcade game on your PC, videos and live streams, with money, gear and subscriber milestones up to 1 million.
-
-- **Space Lane Shooter** (third game): animal pilots vs. space-animal enemies in 5 lanes, bosses every 5 levels, power-ups, upgrades and high scores.
-
-- **THE GAME** (fourth game): a side-view block-building sandbox with Survival and Creative, random worlds, mining, crafting, creatures at night and saved worlds.
-
-- **Monster Packs deals (real money, Stripe):** every-tier bundle $9.99, starter pack $1.99 (once), daily deal $0.99, weekend mega deal $4.99; pop-up ads; grown-up check; terms page. Opens when `STRIPE_SECRET_KEY` is set (needs Vercel Pro). Later: restore purchases across devices (needs sign-in).
-
-Next for Monster Packs: update 2, battles (leveling, special moves, Boss Tower), then update 3, earning (quests, achievements, login streak, Monster Whack). Later: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
+- A public arcade at `/l-games` with four games: Monster Packs, Race & Stream, Space Lane Shooter and THE GAME.
+- It moved to its own repo (`JSchus/l-games`) and Vercel project; schuster.me forwards `/l-games` to it and redirects the old `/logans-games` address. Its roadmap lives there.
 
 ## Email aliases ✅
 

@@ -268,13 +268,12 @@ Nothing to set up: the next production deploy adds the tables itself.
 
 Short links, Admin, Add passkey, the theme switch and Sign out are now in the **menu** (☰) at the top right.
 
-## 14. Logan's Games
+## 14. L Games
 
-Nothing to set up. After the deploy:
+The arcade is its own project now: repo **JSchus/l-games**, Vercel project **l-games**. schuster.me forwards **/l-games** to it, and the old **/logans-games** address redirects there.
 
-- [ ] Open **https://schuster.me/logans-games** while signed out (for example in a private window) to check it's public, then play **Monster Packs**.
-- [ ] Send Logan the link. His progress is saved on whatever phone or computer he plays on.
-- [ ] **New game:** Logan describes it in a Claude session on this repository. It becomes a new folder in `public/logans-games/` plus one line in `lib/logans-games/games.ts`, delivered as a pull request you merge.
+- [ ] Open **https://schuster.me/l-games** while signed out (for example in a private window) to check it's public.
+- [ ] New games and the Monster Packs store (Stripe) are handled in the `l-games` repo.
 
 ## 15. Email aliases (Amazon SES, ≈30 min)
 
@@ -305,19 +304,6 @@ Everything here is on **`m.schuster.me`**. Don't touch any record on `@` (the IO
 - [ ] Hit **Reply** and send. The Gmail side sees it come from `test@m.schuster.me`, never your real address.
 - [ ] Back on the page, *Recent mail* shows both.
 
-## 16. Monster Packs store (real money, optional)
-
-The deals show "Store opening soon" until this is done. **Selling things needs Vercel Pro** (the free Hobby plan is non-commercial only).
-
-- [ ] **Vercel → Settings → Billing:** upgrade the team to **Pro**.
-- [ ] **Stripe:** sign up at **stripe.com** with your own details and bank account. Leave it in **Test mode** at first.
-- [ ] **Stripe → Settings → Public details:** set the support email that receipts show (refunds are requested by replying to the receipt).
-- [ ] **Stripe → Developers → API keys:** copy the **Secret key** (`sk_test_…`). Never paste it anywhere but Vercel.
-- [ ] **Vercel → Settings → Environments → Production → Add Environment Variable:** `STRIPE_SECRET_KEY` = that key, as **Secret**. Then redeploy.
-- [ ] **Test:** in Monster Packs, buy a deal with Stripe's test card `4242 4242 4242 4242`, any future date, any CVC. The packs should appear under **My packs**.
-- [ ] **Go live:** finish Stripe's account checks, switch Stripe to **Live mode**, replace the variable with the **live** secret key (`sk_live_…`), and redeploy.
-- [ ] **Refunds:** Stripe → **Payments** → the payment → **Refund**.
-
 ## Troubleshooting
 
 | Symptom | Cause → fix |
@@ -337,8 +323,6 @@ The deals show "Store opening soon" until this is done. **Selling things needs V
 | Web game shows "AccessDenied" | The bucket policy from step 9 is missing, or Block Public Access still blocks bucket policies. |
 | Console game says the BIOS is missing | PS1 needs a BIOS file; the admin adds it on any PlayStation game's page. |
 | Library loads but covers are broken | S3 credentials or region are wrong in Vercel. Covers are presigned GETs. |
-| Monster Packs deals say "Store opening soon" | `STRIPE_SECRET_KEY` isn't set for Production, or you didn't redeploy after adding it. |
-| Paid, but no packs appeared | Reload the game on the same device (it asks Stripe again). Packs only go to the device that started the checkout. If still nothing, refund it in Stripe. |
 | Alias mail never arrives | Check, in order: the `m` MX record; the SES rule set is *Active*; the SNS subscription is *Confirmed*; `MAIL_INBOUND_TOPIC_ARN` matches the topic. Vercel → *Logs* shows `[mail] …` lines. Turned-off, expired and spam mail is listed under *Recent mail*. |
 | A reply didn't go out | Replies are only sent from your sign-in email, or from an address you added and confirmed under *Email aliases → Reply from another address* (for example the Gmail your mail is forwarded to). *Recent mail* shows it as *Refused*. |
 | *Write in Gmail* email didn't go out | Send it from your sign-in email or a confirmed reply address, to the one hidden address only (Cc and Bcc are dropped). *Recent mail* shows *Refused* if the sender wasn't recognised. |

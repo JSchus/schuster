@@ -4,8 +4,9 @@ import { authConfig } from "@/auth.config";
 export const { auth: middleware } = NextAuth(authConfig);
 
 export const config = {
-  // Everything except static assets, PWA files and icons.
+  // Everything except static assets, PWA files, icons and the public L Games arcade
+  // (served by its own Vercel project; see next.config.ts).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|icons/|manifest.webmanifest|sw.js|sw-range.js|emulatorjs/|logans-games/|.*\\.(?:png|svg|jpg|webp|ico|txt|mjs)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|icons/|manifest.webmanifest|sw.js|sw-range.js|emulatorjs/|l-games(?:/|$)|.*\\.(?:png|svg|jpg|webp|ico|txt|mjs)$).*)",
   ],
 };
