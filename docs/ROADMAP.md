@@ -95,6 +95,8 @@ Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to 
 
 - **THE GAME** (fourth game): a side-view block-building sandbox with Survival and Creative, random worlds, mining, crafting, creatures at night and saved worlds.
 
+- **Monster Packs deals (real money, Stripe):** every-tier bundle $9.99, starter pack $1.99 (once), daily deal $0.99, weekend mega deal $4.99; pop-up ads; grown-up check; terms page. Opens when `STRIPE_SECRET_KEY` is set (needs Vercel Pro). Later: restore purchases across devices (needs sign-in).
+
 Next for Monster Packs: update 2, battles (leveling, special moves, Boss Tower), then update 3, earning (quests, achievements, login streak, Monster Whack). Later: save progress to Logan's account so it follows him between devices; a leaderboard; more games.
 
 ## Email aliases ✅

@@ -201,6 +201,10 @@
       rewards: { series2: false, shiny1: false, shiny2: false },
       packsOpened: 0,
       battlesWon: 0,
+      /** Unopened packs you own (from deals): tier number or "event" → how many. */
+      packs: {},
+      /** Deal payments already added to this save (so none is added twice). */
+      claimed: [],
     };
   }
 
@@ -210,13 +214,22 @@
       const s = JSON.parse(json);
       if (!s || (s.v !== 1 && s.v !== 2) || typeof s.coins !== "number" || typeof s.owned !== "object") return newState();
       const fresh = newState();
-      return { ...fresh, ...s, v: 2, owned: { ...s.owned }, shiny: { ...(s.shiny || {}) }, rewards: { ...fresh.rewards, ...(s.rewards || {}) } };
+      return {
+        ...fresh,
+        ...s,
+        v: 2,
+        owned: { ...s.owned },
+        shiny: { ...(s.shiny || {}) },
+        rewards: { ...fresh.rewards, ...(s.rewards || {}) },
+        packs: { ...(s.packs || {}) },
+        claimed: [...(s.claimed || [])],
+      };
     } catch {
       return newState();
     }
   }
 
-  const clone = (s) => ({ ...s, owned: { ...s.owned }, shiny: { ...s.shiny }, rewards: { ...s.rewards } });
+  const clone = (s) => ({ ...s, owned: { ...s.owned }, shiny: { ...s.shiny }, rewards: { ...s.rewards }, packs: { ...s.packs }, claimed: [...s.claimed] });
 
   /* ---------------------------------------------------------------- */
   /* Packs                                                              */
@@ -335,11 +348,11 @@
    * The Weekend Event pack: one event-only monster (the last card) plus four
    * cards like a Legendary pack, all with double shiny odds.
    */
-  function openEventPack(state, rng = Math.random, now = Date.now()) {
-    if (!isEventDay(now)) return { ok: false, reason: "The Weekend Event pack is only in the shop on Saturdays and Sundays", state };
-    if (state.coins < EVENT_PACK.price) return { ok: false, reason: "Not enough coins", state };
+  function openEventPack(state, rng = Math.random, now = Date.now(), opts = {}) {
+    if (!opts.free && !isEventDay(now)) return { ok: false, reason: "The Weekend Event pack is only in the shop on Saturdays and Sundays", state };
+    if (!opts.free && state.coins < EVENT_PACK.price) return { ok: false, reason: "Not enough coins", state };
     const s = clone(state);
-    s.coins -= EVENT_PACK.price;
+    if (!opts.free) s.coins -= EVENT_PACK.price;
     const normal = rollPackTiers(3, rng)
       .slice(0, PACK_SIZE - 1)
       .map((t) => pick(rng, CARDS_BY_TIER[t]));
@@ -347,6 +360,34 @@
     s.packsOpened += 1;
     const rewards = claimRewards(s);
     return { ok: true, state: s, cards, rewards, completed: rewards.length > 0 };
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Packs you own (from deals)                                         */
+  /* ---------------------------------------------------------------- */
+
+  /** Add a paid deal's packs and coins, once per payment. */
+  function applyGrant(state, paymentId, grant) {
+    if (state.claimed.includes(paymentId)) return { state, added: false };
+    const s = clone(state);
+    for (const [k, n] of Object.entries(grant.packs || {})) {
+      if (k !== "event" && !TIERS[Number(k)]) continue;
+      s.packs[k] = (s.packs[k] || 0) + Math.max(0, Math.floor(n));
+    }
+    s.coins += Math.max(0, Math.floor(grant.coins || 0));
+    s.claimed = [...s.claimed, paymentId].slice(-100);
+    return { state: s, added: true };
+  }
+  /** Open one of your own packs (free: you already have it). `key` is a tier number or "event". */
+  function openOwnedPack(state, key, rng = Math.random, now = Date.now()) {
+    const k = String(key);
+    if (!(state.packs[k] > 0)) return { ok: false, reason: "You don't have that pack", state };
+    const res = k === "event" ? openEventPack(state, rng, now, { free: true }) : openPack(state, Number(k), rng, { free: true });
+    if (res.ok) {
+      res.state.packs = { ...res.state.packs, [k]: res.state.packs[k] - 1 };
+      if (!res.state.packs[k]) delete res.state.packs[k];
+    }
+    return res;
   }
 
   /* ---------------------------------------------------------------- */
@@ -521,6 +562,8 @@
     isEventDay,
     msUntilEventChange,
     openEventPack,
+    applyGrant,
+    openOwnedPack,
     localDay,
     canClaimDaily,
     claimDaily,

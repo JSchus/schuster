@@ -230,7 +230,7 @@
           href: "#",
           onclick: (e) => {
             e.preventDefault();
-            if (confirm("Start over? This deletes your cards and coins on this device.")) {
+            if (confirm("Start over? This deletes your cards, coins and any packs you bought, on this device. Bought packs can't be brought back.")) {
               setState(M.newState());
               render();
             }
@@ -238,7 +238,186 @@
         },
         "Reset game",
       ),
+      " · ",
+      h("a", { href: "/logans-games/terms" }, "Store terms"),
     );
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Deals (real money, through Stripe)                                */
+  /* ---------------------------------------------------------------- */
+
+  const DEVICE_KEY = "logans-games:device";
+  /** A random id for this device: bought packs are only given to the device that bought them. */
+  function deviceId() {
+    let id = read(DEVICE_KEY);
+    if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
+      id = crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
+      write(DEVICE_KEY, id);
+    }
+    return id;
+  }
+  /** Today's deals from the server: { open, offers }. Loaded once per visit. */
+  let store = null;
+  let adsShown = 0;
+  async function loadStore() {
+    try {
+      const res = await fetch(`/api/logans-games/offers?device=${deviceId()}`);
+      store = res.ok ? await res.json() : { open: false, offers: [] };
+    } catch {
+      store = { open: false, offers: [] };
+    }
+    if (screen === "packs") render();
+  }
+  const packName2 = (k) => (k === "event" ? M.EVENT_PACK.name : M.TIERS[Number(k)].name);
+  const grantText = (g) =>
+    [...Object.entries(g.packs || {}).map(([k, n]) => `${n} ${packName2(k)} pack${n === 1 ? "" : "s"}`), g.coins ? `${coins(g.coins)} coins` : null].filter(Boolean).join(", ");
+
+  function dealCard(o, big) {
+    const closed = !store || !store.open;
+    return h(
+      `div.deal${big ? ".big" : ""}`,
+      {},
+      h("div.deal-emoji", {}, o.emoji),
+      h("div", { style: "flex:1;min-width:150px" }, h("strong", {}, o.name), h("div.muted", {}, o.blurb)),
+      o.soldOut
+        ? h("span.got", {}, "Got it ✓")
+        : h(
+            "button.btn.buy",
+            { disabled: closed, onclick: () => grownUpCheck(o), "aria-label": `${o.name}: ${o.price} real money` },
+            closed ? "Store opening soon" : `${o.price}`,
+          ),
+    );
+  }
+
+  function dealsBox() {
+    if (!store) return h("div.deals", {}, h("p.muted", {}, "Loading deals…"));
+    if (!store.offers.length) return null;
+    return h(
+      "div.deals",
+      {},
+      h("h2", { style: "margin-top:0" }, "🔥 Deals ", h("span.real", {}, "real money")),
+      store.offers.map((o) => dealCard(o)),
+      h("p.muted.small", {}, store.open ? "Ask a grown-up before buying. Paid securely with Stripe. " : "Deals open soon. ", h("a", { href: "/logans-games/terms" }, "Store terms")),
+    );
+  }
+
+  /** A pop-up ad now and then (every 5th pack, at most twice a visit). */
+  function maybeShowAd() {
+    if (!store || !store.open || adsShown >= 2 || state.packsOpened % 5 !== 0) return;
+    const deals = store.offers.filter((o) => !o.soldOut);
+    if (!deals.length) return;
+    adsShown++;
+    const o = deals[Math.floor(Math.random() * deals.length)];
+    const ad = h(
+      "div.overlay",
+      { role: "dialog", "aria-label": "Special deal" },
+      h(
+        "div.ad",
+        {},
+        h("button.ad-close", { "aria-label": "Close", onclick: () => ad.remove() }, "✕"),
+        h("div.ad-tag", {}, "⚡ SPECIAL DEAL ⚡"),
+        h("div", { style: "font-size:64px" }, o.emoji),
+        h("div.big", {}, o.name),
+        h("p", {}, o.blurb),
+        h("button.btn.buy", { onclick: () => (ad.remove(), grownUpCheck(o)) }, `Get it for ${o.price}`),
+        h("p.muted.small", {}, "Costs real money: ask a grown-up first."),
+        h("button.btn.ghost.small", { onclick: () => ad.remove() }, "No thanks"),
+      ),
+    );
+    document.body.append(ad);
+  }
+
+  /** Kids' store rule: a grown-up answers a sum before any real-money checkout. */
+  function grownUpCheck(o) {
+    const a = 6 + Math.floor(Math.random() * 7);
+    const b = 6 + Math.floor(Math.random() * 7);
+    const input = h("input.answer", { inputmode: "numeric", autocomplete: "off", "aria-label": `What is ${a} times ${b}?` });
+    const msg = h("p.muted", {}, "");
+    const go = h("button.btn.buy", { type: "submit" }, `Pay ${o.price}`);
+    const box = h(
+      "div.overlay",
+      { role: "dialog", "aria-label": "Grown-ups only" },
+      h(
+        "form.ad",
+        {
+          onsubmit: async (e) => {
+            e.preventDefault();
+            if (Number(input.value) !== a * b) {
+              msg.textContent = "That's not right. Please ask a grown-up!";
+              input.value = "";
+              return;
+            }
+            go.disabled = true;
+            msg.textContent = "Opening the secure checkout…";
+            try {
+              const res = await fetch("/api/logans-games/checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ offer: o.id, device: deviceId() }),
+              });
+              const body = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(body.error || "Couldn't start the checkout.");
+              location.href = body.url;
+            } catch (err) {
+              msg.textContent = err.message;
+              go.disabled = false;
+            }
+          },
+        },
+        h("button.ad-close", { type: "button", "aria-label": "Close", onclick: () => box.remove() }, "✕"),
+        h("div", { style: "font-size:44px" }, "🔒"),
+        h("div.big", {}, "Grown-ups only"),
+        h("p", {}, `${o.emoji} ${o.name} costs `, h("strong", {}, `${o.price} of real money`), "."),
+        h("p", {}, `To continue, what is ${a} × ${b}?`),
+        input,
+        go,
+        msg,
+        h("p.muted.small", {}, "You'll pay on Stripe's secure page. The packs go to this device only. ", h("a", { href: "/logans-games/terms" }, "Store terms")),
+      ),
+    );
+    document.body.append(box);
+    input.focus();
+  }
+
+  /** Back from Stripe: ?paid=cs_… means ask the server for the packs. */
+  async function handleReturn() {
+    const q = new URLSearchParams(location.search);
+    const paid = q.get("paid");
+    if (!paid && !q.has("canceled")) return;
+    history.replaceState(null, "", location.pathname);
+    if (!paid) return toast("No worries: nothing was bought.");
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const res = await fetch("/api/logans-games/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session: paid, device: deviceId() }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 402) {
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
+        if (!res.ok) return toast(body.error || "Couldn't add your packs. Reload to try again.");
+        const out = M.applyGrant(state, paid, body.grant);
+        setState(out.state);
+        render();
+        if (!out.added) return;
+        sounds.win();
+        confetti(100);
+        const o = h(
+          "div.overlay",
+          { role: "dialog", "aria-label": "Thank you" },
+          h("div.celebrate", {}, h("div", { style: "font-size:64px" }, "🎁"), h("div.big", {}, "THANK YOU!"), h("p", {}, `You got ${grantText(body.grant)}!`), h("p.muted", {}, "Find them under My packs."), h("button.btn", { onclick: () => o.remove() }, "Open them!")),
+        );
+        document.body.append(o);
+        return;
+      } catch {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+    toast("Your payment is still going through. Reload in a minute to get your packs.");
   }
 
   /* ---------------------------------------------------------------- */
@@ -281,6 +460,24 @@
     );
   }
 
+  /** Packs you own from deals, ready to open. */
+  function myPacksBox() {
+    const owned = Object.entries(state.packs).filter(([, n]) => n > 0);
+    if (!owned.length) return null;
+    return h(
+      "div.my-packs",
+      {},
+      h("h2", { style: "margin-top:0" }, "🎒 My packs"),
+      h(
+        "div.shop",
+        {},
+        owned.map(([k, n]) =>
+          h("div.shop-item", {}, packEl(k === "event" ? "event" : Number(k)), h("span.price", {}, `×${n}`), h("button.btn.small", { onclick: () => startOpening(k === "event" ? "event" : Number(k), false, true) }, "Open")),
+        ),
+      ),
+    );
+  }
+
   function packsScreen() {
     clearInterval(countdownTimer);
     const canClaim = M.canClaimDaily(state);
@@ -306,6 +503,8 @@
         h("div", { style: "flex:1;min-width:160px" }, h("strong", {}, "Daily free pack"), h("div.muted", {}, canClaim ? "A free Basic pack, every day!" : countdown)),
         h("button.btn", { disabled: !canClaim, onclick: () => startOpening(0, true) }, canClaim ? "Open free pack" : "Opened today"),
       ),
+      myPacksBox(),
+      dealsBox(),
       eventBox(),
       h("h2", {}, "Shop"),
       h(
@@ -330,8 +529,8 @@
   }
 
   /** Buy (or claim) a pack, then show the tear-it-open screen. */
-  function startOpening(tier, free) {
-    const res = free ? M.claimDaily(state) : tier === "event" ? M.openEventPack(state) : M.openPack(state, tier);
+  function startOpening(tier, free, owned) {
+    const res = owned ? M.openOwnedPack(state, tier) : free ? M.claimDaily(state) : tier === "event" ? M.openEventPack(state) : M.openPack(state, tier);
     if (!res.ok) return toast(res.reason);
     setState(res.state);
     showOpening(tier, res.cards, res.rewards);
@@ -403,6 +602,7 @@
             overlay.remove();
             if (rewards.length) celebrate(rewards);
             render();
+            if (!rewards.length) maybeShowAd();
           },
         },
         "Done",
@@ -750,4 +950,6 @@
   }
 
   render();
+  loadStore();
+  handleReturn();
 })();
