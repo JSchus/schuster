@@ -87,6 +87,7 @@ Follow-ups: ongoing iCloud sync (CardDAV), contact groups (e.g. "Book club") to 
 
 - A public arcade at `/l-games` with four games: Monster Packs, Race & Stream, Space Lane Shooter and THE GAME.
 - It moved to its own repo (`JSchus/l-games`) and Vercel project; schuster.me forwards `/l-games` to it and redirects the old `/logans-games` address. Its roadmap lives there.
+- **O Games** (`/o-games`): a second arcade, set up the same way (repo `JSchus/o-games`, its own Vercel project), with a "Create a new game" page for game ideas.
 
 ## Email aliases ✅
 
