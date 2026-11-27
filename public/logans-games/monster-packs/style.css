@@ -232,3 +232,21 @@ footer a { color: var(--muted); }
 .shiny-chip[aria-pressed="true"] { background: linear-gradient(90deg, #fff59d, #ff9df4, #9dfbff); color: #241a00; }
 .event .pack .label { font-size: 10px; letter-spacing: 0.5px; margin-top: 34%; }
 .event .pack .logo { font-size: 22px; top: 12%; }
+
+/* Deals (real money) and My packs */
+.deals, .my-packs { margin: 14px 0 4px; padding: 14px; border-radius: var(--radius); background: linear-gradient(135deg, #3a1b5e, #221b45); border: 2px solid #ffcf3d55; }
+.my-packs { background: var(--panel); border-color: #4ade8055; }
+.real { font-size: 12px; font-weight: 800; color: #241a00; background: var(--accent); padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
+.deal { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #ffffff14; }
+.deal:first-of-type { border-top: 0; }
+.deal-emoji { font-size: 34px; }
+.btn.buy { background: linear-gradient(135deg, #4ade80, #22c55e); color: #052e16; min-width: 96px; }
+.got { color: var(--good); font-weight: 800; }
+.small { font-size: 12px; }
+.small a, .muted a { color: inherit; }
+.ad { position: relative; background: linear-gradient(160deg, #4a1f7a, #1a1440); border: 3px solid var(--accent); border-radius: 18px; padding: 26px 22px 18px; max-width: 360px; width: 100%; display: grid; gap: 10px; justify-items: center; text-align: center; box-shadow: 0 0 40px #ffcf3d55; }
+.ad .big { font-size: 26px; font-weight: 900; color: var(--accent); }
+.ad p { margin: 0; }
+.ad-tag { font-weight: 900; letter-spacing: 2px; color: #ff9df4; font-size: 13px; }
+.ad-close { position: absolute; top: 8px; right: 10px; background: #0006; border-radius: 999px; width: 32px; height: 32px; }
+.answer { font: inherit; font-size: 22px; width: 120px; text-align: center; padding: 8px; border-radius: 10px; border: 2px solid var(--accent); background: #0008; color: var(--text); }

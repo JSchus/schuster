@@ -23,6 +23,8 @@ const schema = z.object({
   MAIL_INBOUND_TOPIC_ARN: z.string().optional(),
   /** "ses" (default) or "memory" (tests). */
   MAIL_DRIVER: z.enum(["ses", "memory"]).default("ses"),
+  /** Stripe secret key for Monster Packs deals (sk_test_… or sk_live_…). Unset = store closed. */
+  STRIPE_SECRET_KEY: z.string().optional(),
   S3_FORCE_PATH_STYLE: z
     .enum(["true", "false", ""])
     .default("false")

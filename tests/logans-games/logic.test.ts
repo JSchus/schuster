@@ -202,6 +202,27 @@ describe("Monster Packs: Logan's rules", () => {
     expect(M.openPack({ ...s, coins: 100 }, 0, M.seeded(1)).rewards).toEqual([]);
   });
 
+  it("adds bought packs once per payment, and opens them for free", () => {
+    let s: State = M.newState();
+    const grant = { packs: { "0": 1, "10": 1, event: 2, "99": 3 }, coins: 2000 };
+    const r1 = M.applyGrant(s, "cs_1", grant);
+    expect(r1.added).toBe(true);
+    expect(r1.state.packs).toEqual({ "0": 1, "10": 1, event: 2 }); // unknown tiers ignored
+    expect(r1.state.coins).toBe(M.START_COINS + 2000);
+    expect(M.applyGrant(r1.state, "cs_1", grant)).toMatchObject({ added: false }); // never twice
+    s = r1.state;
+    const open = M.openOwnedPack(s, "10", M.seeded(1));
+    expect(open.ok).toBe(true);
+    expect(open.state.coins).toBe(s.coins); // already paid for
+    expect(open.state.packs["10"]).toBeUndefined();
+    expect(Math.max(...open.cards.map((c: { id: number }) => M.CARD_BY_ID.get(c.id).tier))).toBe(10);
+    const ev = M.openOwnedPack(open.state, "event", M.seeded(2), Date.parse("2026-11-26T18:00:00Z")); // a Thursday is fine for owned packs
+    expect(ev.ok).toBe(true);
+    expect(M.CARD_BY_ID.get(ev.cards[4].id).event).toBe(true);
+    expect(M.openOwnedPack(ev.state, "10", M.seeded(3)).ok).toBe(false);
+    expect(M.loadState(JSON.stringify(ev.state))).toEqual(ev.state);
+  });
+
   it("saves and loads, and starts fresh from a broken save", () => {
     const s = M.openPack({ ...M.newState(), coins: 500 }, 0, M.seeded(5)).state;
     expect(M.loadState(JSON.stringify(s))).toEqual(s);

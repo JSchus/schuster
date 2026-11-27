@@ -16,6 +16,9 @@ const PUBLIC_PATHS = [
   /^\/mail-confirm\/[^/]+$/,
   // Logan's public arcade (the games themselves are static files, outside the middleware).
   /^\/logans-games\/?$/,
+  /^\/logans-games\/terms$/,
+  // Monster Packs deals (each checks Stripe itself; no sign-in for the arcade).
+  /^\/api\/logans-games\/(offers|checkout|claim)$/,
   // Amazon SNS posts "an email arrived" here; every request is signature-checked.
   /^\/api\/mail\/inbound$/,
 ];

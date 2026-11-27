@@ -140,6 +140,7 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 - **Race & Stream** (`race-and-stream/`): three games in one. Race top-down against computer cars, play Block Dodge on your in-game PC, and make videos or go live. All three earn money (for faster cars, PCs, cameras and mics) and subscribers (1K, 100K and 1M unlock tracks, live streaming, sponsor deals). Rules in `logic.js` (tested in `tests/logans-games/race-and-stream.test.ts`); adding `#autopilot` to the address drives the car, for testing.
 - **Space Lane Shooter** (`space-lane-shooter/`): animal pilots (each with a power) fly along 5 lanes with auto-fire, against zig-zagging Alien Bees, lunging Laser Sharks, egg-dropping Robo-Chickens and Space Slugs, with a boss every 5 levels. Power-ups (triple shot, shield, laser, bomb, heart); star coins buy upgrades and pilots; top-5 high scores. Rules in `logic.js` (tested in `tests/logans-games/space-lane-shooter.test.ts`); `#autopilot` flies the ship, for testing.
 - **THE GAME** (`the-game/`): a side-view block sandbox. Random 512×128 worlds (grass, desert and snow lands, caves, water, lava, ores deeper down) in Survival (health, hunger, day and night, mining, crafting at a Workbench and Furnace, tools and armor, made-up creatures at night) or Creative (every block, flying). Several named worlds saved on the device (run-length packed, about 20–40 KB each). Rules in `logic.js` (tested in `tests/logans-games/the-game.test.ts`); `#debug` exposes the game to test scripts.
+- **Monster Packs deals (real money):** `lib/logans-games/store.ts` holds the 4 deals and prices (server-side only). The game sends a deal id and a random device id; `/api/logans-games/checkout` starts a Stripe Checkout session (card details only on Stripe), and after paying `/api/logans-games/claim` checks with Stripe that it's paid in full, then hands the packs to that device once (`game_purchases`). A grown-up maths check comes before checkout; terms and refunds at `/logans-games/terms`. Purchases live on the device (no accounts).
 - **To add a game:** a new folder in `public/logans-games/`, plus one entry in `lib/logans-games/games.ts`.
 
 ## Project layout
@@ -234,6 +235,7 @@ All of them are server-side. They are validated lazily in `lib/env.ts`, so `next
 | `MAIL_DOMAIN` | | `m.schuster.me` | Domain the email aliases live on (default). Never `schuster.me` itself. |
 | `MAIL_INBOUND_TOPIC_ARN` | aliases | `arn:aws:sns:us-east-1:…:schuster-mail` | The SNS topic SES notifies. Not a secret. `/api/mail/inbound` ignores every other topic. |
 | `MAIL_DRIVER` | | `ses` | `ses` (default) or `memory` (tests only). Sending uses the S3 key and region. |
+| `STRIPE_SECRET_KEY` | store | `sk_test_…` / `sk_live_…` | Monster Packs real-money deals (Stripe Checkout). Unset = deals show "Store opening soon". Secret: set it in Vercel only. Selling needs Vercel Pro (Hobby is non-commercial). |
 | `S3_FORCE_PATH_STYLE` | | `true` | Path-style URLs (needed by most emulators). `false` for AWS. |
 
 ---
