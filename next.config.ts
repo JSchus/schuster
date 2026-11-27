@@ -29,6 +29,9 @@ const nextConfig: NextConfig = {
     return [
       { source: "/logans-games", destination: "/l-games", permanent: true },
       { source: "/logans-games/:path*", destination: "/l-games/:path*", permanent: true },
+      // A common misspelling of the old address.
+      { source: "/logan-games", destination: "/l-games", permanent: true },
+      { source: "/logan-games/:path*", destination: "/l-games/:path*", permanent: true },
     ];
   },
   async rewrites() {

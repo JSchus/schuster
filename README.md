@@ -132,7 +132,7 @@ Downloads hit `/api/items/:id/download`, which returns a **302** to a 5-minute p
 
 - **schuster.me/l-games** is a public arcade of kids' games (no sign-in, kept off search engines). It is its own repo (`JSchus/l-games`) and Vercel project, with `basePath: "/l-games"`.
 - `next.config.ts` forwards `/l-games` and `/l-games/*` to that project's production address, so players stay on schuster.me and keep their saves (browsers store them per site). The middleware skips `/l-games`.
-- The old address `/logans-games/*` redirects to `/l-games/*`.
+- The old address `/logans-games/*` (and the misspelling `/logan-games/*`) redirects to `/l-games/*`.
 - The games, the Monster Packs store (Stripe), its docs and its tests all live in the `l-games` repo. The `game_purchases` table and migration 0008 stay here (migrations are additive), unused.
 
 ## Project layout

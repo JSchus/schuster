@@ -17,7 +17,7 @@ const PUBLIC_PATHS = [
   // The public L Games arcade (its own Vercel project, forwarded in next.config.ts), and its
   // old address, which redirects there. The middleware skips /l-games; this is a safety net.
   /^\/l-games(\/.*)?$/,
-  /^\/logans-games(\/.*)?$/,
+  /^\/logans?-games(\/.*)?$/,
   // Amazon SNS posts "an email arrived" here; every request is signature-checked.
   /^\/api\/mail\/inbound$/,
 ];
